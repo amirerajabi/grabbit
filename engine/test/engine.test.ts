@@ -187,6 +187,15 @@ test('queue runs items with its concurrency limit and duplicate names are rename
   await m.shutdown();
 });
 
+test('rapid settings changes are all saved, the last one wins', async () => {
+  const { m, dir } = makeManager();
+  for (let i = 1; i <= 25; i++) m.updateSettings({ maxRetries: i });
+  await m.shutdown();
+  const saved = JSON.parse(fs.readFileSync(path.join(dir, 'data', 'settings.json'), 'utf8'));
+  assert.equal(saved.maxRetries, 25);
+  assert.deepEqual(fs.readdirSync(path.join(dir, 'data')).filter((f) => f.endsWith('.tmp')), []);
+});
+
 test('speed limit slows the transfer', async () => {
   const { m } = makeManager();
   m.updateSettings({ speedLimit: 1024 * 1024, speedLimitEnabled: true });

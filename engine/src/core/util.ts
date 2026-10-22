@@ -81,10 +81,15 @@ export function isHttpUrl(s: string): boolean {
   }
 }
 
-/** Write a file atomically: temp file + rename, so a crash never leaves half a JSON document. */
+let tmpCounter = 0;
+
+/**
+ * Write a file atomically: temp file + rename, so a crash never leaves half a JSON document. Each call gets its own temp
+ * file, so overlapping writes of the same file cannot rename each other's temp file away.
+ */
 export async function atomicWrite(file: string, data: string): Promise<void> {
   await fs.promises.mkdir(path.dirname(file), { recursive: true });
-  const tmp = `${file}.${process.pid}.tmp`;
+  const tmp = `${file}.${process.pid}.${++tmpCounter}.tmp`;
   await fs.promises.writeFile(tmp, data, 'utf8');
   await fs.promises.rename(tmp, file);
 }

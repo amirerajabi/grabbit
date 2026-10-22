@@ -37,6 +37,8 @@ export class DownloadManager extends EventEmitter implements TaskHost {
   private queues: Queue[] = [];
   private settingsValue: Settings = defaultSettings();
   readonly globalLimiter = new RateLimiter();
+  /** The settings file write in flight (writes are chained). */
+  private settingsWrite: Promise<void> = Promise.resolve();
   /** Set by the server: is a window listening for capture prompts? */
   uiConnected: () => boolean = () => false;
   private dirty = false;
@@ -80,6 +82,7 @@ export class DownloadManager extends EventEmitter implements TaskHost {
     if (this.scheduleTimer) clearInterval(this.scheduleTimer);
     await Promise.all([...this.tasks.values()].map((t) => t.stop()));
     await this.saveNow();
+    await this.settingsWrite;
   }
 
   private file(name: string): string {
@@ -378,7 +381,12 @@ export class DownloadManager extends EventEmitter implements TaskHost {
   updateSettings(patch: Partial<Settings>): Settings {
     this.settingsValue = mergeSettings(this.settingsValue, patch);
     this.applyLimits();
-    void atomicWrite(this.file('settings.json'), JSON.stringify(this.settingsValue, null, 2));
+    // One write at a time, in order, so the file always ends with the latest settings; a failed write is logged, never
+    // an unhandled rejection (which would take the engine down).
+    const data = JSON.stringify(this.settingsValue, null, 2);
+    this.settingsWrite = this.settingsWrite
+      .then(() => atomicWrite(this.file('settings.json'), data))
+      .catch((e) => console.error('saving settings failed', e));
     this.emitEvent({ type: 'settings', settings: this.settingsValue });
     return this.settingsValue;
   }
