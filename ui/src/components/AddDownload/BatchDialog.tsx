@@ -33,6 +33,23 @@ export function expandPattern(pattern: string, from: string, to: string, width: 
   return out;
 }
 
+function extensionOf(url: string): string {
+  try {
+    const last = new URL(url).pathname.split('/').pop() ?? '';
+    return last.includes('.') ? last.split('.').pop()!.toLowerCase() : '';
+  } catch {
+    return '';
+  }
+}
+
+function hostOf(url: string | undefined): string | null {
+  try {
+    return url ? new URL(url).hostname : null;
+  } catch {
+    return null;
+  }
+}
+
 export function BatchDialog() {
   const open = useUi((s) => s.batchOpen);
   if (!open) return null;
@@ -41,8 +58,12 @@ export function BatchDialog() {
 
 function BatchForm() {
   const queues = useEngine((s) => s.queues);
+  const captureExtensions = useEngine((s) => s.settings?.captureExtensions ?? []);
+  // Links from the browser extension ("Download all links"), read once when the dialog opens.
+  const [prefill] = useState(() => useUi.getState().batchPrefill);
   const [mode, setMode] = useState<Mode>('list');
-  const [text, setText] = useState('');
+  const [text, setText] = useState(() => prefill?.urls.join('\n') ?? '');
+  const [filesOnly, setFilesOnly] = useState(!!prefill);
   const [pattern, setPattern] = useState('');
   const [from, setFrom] = useState('1');
   const [to, setTo] = useState('10');
@@ -52,15 +73,16 @@ function BatchForm() {
 
   const urls = useMemo(() => {
     if (mode === 'pattern') return expandPattern(pattern.trim(), from.trim(), to.trim(), width);
-    const found = text.match(/https?:\/\/[^\s"'<>]+/gi) ?? [];
-    return [...new Set(found)];
-  }, [mode, text, pattern, from, to, width]);
+    const found = [...new Set(text.match(/https?:\/\/[^\s"'<>]+/gi) ?? [])];
+    // A page's links are mostly navigation: keep the ones that point at a file type Grabbit captures.
+    return filesOnly ? found.filter((u) => captureExtensions.includes(extensionOf(u))) : found;
+  }, [mode, text, pattern, from, to, width, filesOnly, captureExtensions]);
 
-  const close = () => useUi.getState().set({ batchOpen: false });
+  const close = () => useUi.getState().set({ batchOpen: false, batchPrefill: null });
   const submit = async (start: 'now' | 'queue') => {
     if (urls.length === 0) return;
     setBusy(true);
-    const r = await attempt(() => api.addBatch(urls, { start, queueId }), 'Could not add the downloads');
+    const r = await attempt(() => api.addBatch(urls, { start, queueId, referer: prefill?.referer, headers: prefill?.headers }), 'Could not add the downloads');
     setBusy(false);
     if (r) {
       useUi.getState().toast({ level: 'success', text: `${pluralize(r.length, 'download')} added`, detail: start === 'now' ? 'The queue has started.' : 'They wait in the queue.' });
@@ -99,9 +121,15 @@ function BatchForm() {
           </button>
         </div>
         {mode === 'list' ? (
-          <Field label="Addresses" hint="Paste links, one per line, or any text that contains them.">
-            <textarea className="input textarea mono-sm" rows={9} value={text} onChange={(e) => setText(e.target.value)} placeholder={'https://example.com/part1.zip\nhttps://example.com/part2.zip'} spellCheck={false} autoFocus />
-          </Field>
+          <>
+            <Field label="Addresses" hint={prefill ? `${prefill.urls.length} links from ${hostOf(prefill.referer) ?? 'your browser'}. Edit the list or filter it below.` : 'Paste links, one per line, or any text that contains them.'}>
+              <textarea className="input textarea mono-sm" rows={9} value={text} onChange={(e) => setText(e.target.value)} placeholder={'https://example.com/part1.zip\nhttps://example.com/part2.zip'} spellCheck={false} autoFocus />
+            </Field>
+            <label className="check">
+              <input type="checkbox" checked={filesOnly} onChange={(e) => setFilesOnly(e.target.checked)} />
+              Only links to files (the types in Options → Browser &amp; clipboard)
+            </label>
+          </>
         ) : (
           <>
             <Field label="Address with a * wildcard">

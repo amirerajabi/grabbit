@@ -135,10 +135,14 @@ function Section({ id, s }: { id: SettingsSection; s: SettingsT }) {
           <div className="info-card">
             <Globe size={18} className="text-accent" />
             <div>
-              <strong>Browser extension</strong>
+              <strong>Browser extensions for Chrome, Edge and Firefox</strong>
               <p className="muted">
-                Load the <code>extension</code> folder of this project as an unpacked extension (chrome://extensions → Developer mode → Load unpacked). It adds “Download with Grabbit” to the link menu and hands
-                matching browser downloads to Grabbit through <code>http://127.0.0.1:7310/capture</code>.
+                They add “Download with Grabbit”, “Download selected links” and “Download all links” to the right-click menu, and hand browser downloads of the file types above to
+                Grabbit. Get them from the{' '}
+                <a href="https://github.com/amirerajabi/grabbit/blob/main/docs/browser-extensions.md" target="_blank" rel="noreferrer">
+                  install guide
+                </a>
+                .
               </p>
             </div>
           </div>

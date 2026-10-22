@@ -7,6 +7,7 @@ import * as path from 'node:path';
 import { after, before, test } from 'node:test';
 import type { DownloadItem, EngineEvent } from '../../shared/protocol';
 import { DownloadManager } from '../src/core/DownloadManager';
+import { createServer } from '../src/http/server';
 import { fileNameFrom } from '../src/core/util';
 
 const SIZE = 6 * 1024 * 1024 + 123;
@@ -184,6 +185,39 @@ test('queue runs items with its concurrency limit and duplicate names are rename
   const running = ids.filter((id) => ['connecting', 'downloading'].includes(m.get(id)!.status)).length;
   assert.equal(running, 2);
   for (const id of ids) await waitFor(m, id, ['completed']);
+  await m.shutdown();
+});
+
+test('capture endpoint: extensions get in, web pages do not', async () => {
+  const { m } = makeManager();
+  const srv = createServer(m, 'secret');
+  await new Promise<void>((r) => srv.listen(0, '127.0.0.1', r));
+  const at = `http://127.0.0.1:${(srv.address() as { port: number }).port}/capture`;
+  const H = { 'X-Grabbit-Capture': '1', 'Content-Type': 'application/json' };
+  const body = JSON.stringify({ url: `${base}/file` });
+  const status = (init: RequestInit) => fetch(at, init).then((r) => r.status);
+  try {
+    // Chromium sends no Origin on an extension's GET when it has host permissions; Firefox sends moz-extension://.
+    assert.equal(await status({ headers: H }), 200);
+    assert.equal(await status({ headers: { ...H, Origin: 'moz-extension://abc' } }), 200);
+    assert.equal(await status({ method: 'POST', headers: { ...H, Origin: 'chrome-extension://abc' }, body }), 200);
+    // A web page: either it cannot add the header, or its Origin gives it away.
+    assert.equal(await status({}), 403);
+    assert.equal(await status({ method: 'POST', headers: { 'Content-Type': 'text/plain' }, body }), 403);
+    assert.equal(await status({ method: 'POST', headers: { ...H, Origin: 'https://evil.example' }, body }), 403);
+    assert.equal(await status({ method: 'OPTIONS', headers: { Origin: 'https://evil.example' } }), 403);
+  } finally {
+    srv.close();
+    await m.shutdown();
+  }
+});
+
+test('"download all links" without a window queues only file links', async () => {
+  const { m } = makeManager();
+  const r = m.captureLinks([`${base}/a/setup.exe`, `${base}/about`, 'https://example.com/', `${base}/b/movie.mp4`], 'https://example.com/page');
+  assert.ok(Array.isArray(r));
+  assert.deepEqual((r as DownloadItem[]).map((d) => d.fileName).sort(), ['movie.mp4', 'setup.exe']);
+  assert.ok((r as DownloadItem[]).every((d) => d.status === 'stopped'));
   await m.shutdown();
 });
 

@@ -50,6 +50,10 @@ function onEvent(e: EngineEvent): void {
       useEngine.getState().setQueues(e.queues);
       return;
     case 'capture':
+      if (e.request.urls) {
+        useUi.getState().set({ batchOpen: true, batchPrefill: { urls: e.request.urls, referer: e.request.referer, headers: e.request.headers } });
+        return;
+      }
       useUi.getState().queueAdd({ url: e.request.url, fileName: e.request.fileName, referer: e.request.referer, headers: e.request.headers, captureId: e.request.id });
       return;
     case 'notify': {

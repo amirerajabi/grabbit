@@ -5,6 +5,7 @@
 //   /norange/<name>?mb=N        same, but ignores Range (single connection, cannot resume)
 //   /redirect/<name>            302 to /files/<name>
 //   /expired/<name>             403 (a link that expired)
+//   /page                       an HTML page with file and navigation links (for the extension's "all links")
 import http from 'node:http';
 
 const PORT = Number(process.env.PORT ?? 7400);
@@ -24,6 +25,13 @@ http
     const url = new URL(req.url, `http://127.0.0.1:${PORT}`);
     const [, kind, ...rest] = url.pathname.split('/');
     const name = decodeURIComponent(rest.join('/') || 'file.bin');
+    if (kind === 'page') {
+      // A page to try the extension's "Download all links": file links mixed with ordinary navigation links.
+      const files = ['setup.exe', 'album.zip', 'manual.pdf', 'trailer.mp4', 'song.mp3'];
+      const links = files.map((f) => `<li><a href="/files/${f}?mb=4">${f}</a></li>`).join('');
+      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+      return void res.end(`<!doctype html><title>Grabbit test page</title><h1>Test downloads</h1><ul>${links}</ul><p><a href="/page?about">About</a> · <a href="https://example.com/">Elsewhere</a></p>`);
+    }
     if (kind === 'redirect') return void res.writeHead(302, { Location: `/files/${encodeURIComponent(name)}${url.search}` }).end();
     if (kind === 'expired') return void res.writeHead(403).end('Link expired');
     if (kind !== 'files' && kind !== 'norange') return void res.writeHead(404).end('Not found');

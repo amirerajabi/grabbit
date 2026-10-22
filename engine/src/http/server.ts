@@ -99,15 +99,24 @@ export function createServer(manager: DownloadManager, token: string): http.Serv
         res.setHeader('Access-Control-Allow-Methods', 'POST, GET, OPTIONS');
       }
       if (req.method === 'OPTIONS') return void res.writeHead(extOrigin ? 204 : 403).end();
+      // Extensions only: a web page must not learn that Grabbit runs, nor hand it links. Every request needs the
+      // X-Grabbit-Capture header, which a page cannot add without a CORS preflight (refused above), and any Origin it
+      // carries must be an extension's. Chromium sends no Origin on an extension's GET when it has host permissions.
+      if (req.headers['x-grabbit-capture'] !== '1' || (origin && !extOrigin)) return send(res, 403, { error: 'Forbidden' });
       if (req.method === 'GET') {
-        // Extensions only: a web page must not learn that Grabbit runs or what it captures.
-        if (!extOrigin) return send(res, 403, { error: 'Forbidden' });
         return send(res, 200, { app: 'grabbit', version: ENGINE_VERSION, extensions: manager.getSettings().captureExtensions });
       }
-      if (req.method !== 'POST' || req.headers['x-grabbit-capture'] !== '1' || (origin && !extOrigin)) return send(res, 403, { error: 'Forbidden' });
+      if (req.method !== 'POST') return send(res, 405, { error: 'Method not allowed' });
       try {
         const body = await readBody(req);
-        const result = manager.capture({ url: String(body?.url ?? ''), fileName: body?.fileName, referer: body?.referer, headers: pickHeaders(body?.headers), source: 'browser' });
+        const referer = typeof body?.referer === 'string' ? body.referer : undefined;
+        if (Array.isArray(body?.urls)) {
+          const urls = body.urls.filter((u: unknown): u is string => typeof u === 'string').slice(0, 5000);
+          const result = manager.captureLinks(urls, referer, pickHeaders(body?.headers));
+          return send(res, 200, { ok: true, count: Array.isArray(result) ? result.length : result.urls?.length });
+        }
+        const fileName = typeof body?.fileName === 'string' ? body.fileName : undefined;
+        const result = manager.capture({ url: String(body?.url ?? ''), fileName, referer, headers: pickHeaders(body?.headers), source: 'browser' });
         return send(res, 200, { ok: true, id: result.id });
       } catch (e) {
         return send(res, 400, { error: errorMessage(e) });

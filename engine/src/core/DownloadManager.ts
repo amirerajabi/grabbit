@@ -13,7 +13,7 @@ import type {
   QueueSchedule,
   Settings,
 } from '../../../shared/protocol';
-import { categoryFolder, categoryFor, isCategoryId } from './categories';
+import { categoryFolder, categoryFor, extensionOf, isCategoryId } from './categories';
 import { DownloadTask, probeUrl, requestHeaders, type TaskHost } from './DownloadTask';
 import { RateLimiter, SpeedMeter } from './limiter';
 import { defaultSettings, mergeSettings } from './settings';
@@ -394,6 +394,21 @@ export class DownloadManager extends EventEmitter implements TaskHost {
   private applyLimits(): void {
     const s = this.settingsValue;
     this.globalLimiter.setRate(s.speedLimitEnabled ? s.speedLimit : 0);
+  }
+
+  /** "Download all links" from the extension: the window lets the user pick; with no window they wait in the main queue. */
+  captureLinks(urls: string[], referer?: string, headers?: Record<string, string>): CaptureRequest | DownloadItem[] {
+    const valid = [...new Set(urls.map((u) => u.trim()).filter(isHttpUrl))];
+    if (valid.length === 0) throw new Error('No http(s) links');
+    if (!this.uiConnected()) {
+      // Nobody can pick from the list: keep the links to file types Grabbit captures, not the page's navigation.
+      const exts = this.settingsValue.captureExtensions;
+      const files = valid.filter((u) => exts.includes(extensionOf(fileNameFromUrl(u))));
+      return this.addBatch(files, { start: 'none', referer, headers });
+    }
+    const request: CaptureRequest = { id: newId(), url: valid[0], urls: valid, referer, headers, source: 'browser' };
+    this.emitEvent({ type: 'capture', request });
+    return request;
   }
 
   capture(req: Omit<CaptureRequest, 'id'>): CaptureRequest | DownloadItem {

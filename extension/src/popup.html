@@ -1,0 +1,34 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <style>
+      :root { color-scheme: light dark; --bg: #ffffff; --fg: #1c1f24; --muted: #5f6673; --ok: #15803d; --bad: #b91c1c; --accent: #2563eb; --border: #ccd1d9; }
+      @media (prefers-color-scheme: dark) { :root { --bg: #24272d; --fg: #e6e8eb; --muted: #9aa1ab; --ok: #4ade80; --bad: #f87171; --accent: #5b9cff; --border: #41464f; } }
+      body { margin: 0; width: 280px; padding: 14px; background: var(--bg); color: var(--fg); font: 13px 'Segoe UI', system-ui, sans-serif; }
+      header { display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 15px; }
+      header img { width: 20px; height: 20px; }
+      header .version { margin-left: auto; font-weight: 400; font-size: 11px; color: var(--muted); }
+      p { margin: 10px 0; color: var(--muted); }
+      .ok { color: var(--ok); }
+      .bad { color: var(--bad); }
+      label { display: flex; align-items: center; gap: 8px; cursor: pointer; margin: 10px 0; }
+      input { accent-color: var(--accent); }
+      button { width: 100%; padding: 6px 10px; border: 1px solid var(--border); border-radius: 6px; background: transparent; color: var(--fg); font: inherit; cursor: pointer; }
+      button:hover { border-color: var(--accent); }
+      .hint { font-size: 11px; }
+      [hidden] { display: none; }
+    </style>
+  </head>
+  <body>
+    <header><img src="icons/icon-32.png" alt="" />Grabbit<span class="version" id="version"></span></header>
+    <p id="status">Checking…</p>
+    <label><input type="checkbox" id="capture" /> Capture downloads from this browser</label>
+    <div id="access" hidden>
+      <button id="grant">Allow access to sites</button>
+      <p class="hint">Lets Grabbit use your sign-in (cookies) for downloads that need it.</p>
+    </div>
+    <p class="hint">Right-click a link, a selection or a page for “Download with Grabbit”.</p>
+    <script src="popup.js"></script>
+  </body>
+</html>

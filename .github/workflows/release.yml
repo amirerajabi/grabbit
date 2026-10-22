@@ -91,6 +91,12 @@ jobs:
         with:
           path: artifacts
           merge-multiple: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      # The browser extensions (Chrome, Edge, Firefox), versioned like the app, ride along with the installers.
+      - name: Build browser extensions
+        run: node scripts/build-extensions.mjs artifacts
       - run: ls -la artifacts
       # Every platform must ship its update metadata, or installed copies on it never see this release.
       - name: Check update metadata

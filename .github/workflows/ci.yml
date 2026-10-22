@@ -37,3 +37,9 @@ jobs:
         run: npm test
       - name: Build UI
         run: npm --prefix ui run build
+      - name: Build browser extensions
+        run: node scripts/build-extensions.mjs
+      # The checks addons.mozilla.org runs on a submission.
+      - name: Lint the Firefox extension
+        if: runner.os == 'Linux'
+        run: npx --yes web-ext@8 lint --source-dir extension/dist/firefox --self-hosted=false --warnings-as-errors

@@ -1,6 +1,6 @@
 // Renders the Grabbit mark (same artwork as ui/public/favicon.svg) to icon.png, tray.png and icon.ico without any
 // image library: signed-distance shapes, 4x4 supersampling, a hand-written PNG encoder and an ICO that embeds PNGs.
-import { writeFileSync } from 'node:fs';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import { deflateSync } from 'node:zlib';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -128,6 +128,9 @@ function ico(sizes) {
   return Buffer.concat([header, ...images.map((i) => i.data)]);
 }
 
+const extIcons = join(here, '..', '..', 'extension', 'src', 'icons');
+mkdirSync(extIcons, { recursive: true });
+for (const s of [16, 32, 48, 128]) writeFileSync(join(extIcons, `icon-${s}.png`), png(s));
 writeFileSync(join(here, 'icon.png'), png(512));
 writeFileSync(join(here, 'tray.png'), png(32));
 writeFileSync(join(here, 'icon.ico'), ico([16, 24, 32, 48, 64, 128, 256]));

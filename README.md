@@ -24,6 +24,8 @@ From the [latest release](../../releases/latest):
 - **Windows:** `Grabbit-Setup-<version>.exe`
 - **macOS (Apple silicon):** `Grabbit-<version>-mac-arm64.dmg`
 - **Linux:** `Grabbit-<version>-x86_64.AppImage`
+- **Browser extension:** `Grabbit-Extension-Chrome-<version>.zip`, `…-Edge-…` and `…-Firefox-…`. See
+  [browser extensions](docs/browser-extensions.md) for how to install them.
 
 The builds are not code-signed yet. On Windows, SmartScreen may warn on first run: choose **More info → Run anyway**. On
 macOS, right-click the app and choose **Open** the first time.
@@ -44,7 +46,7 @@ a glass top bar, a tabbed dock on the left, a toolbar, a status bar and a comman
 | Queues and scheduler | Several queues, each with a limit on files at once, start and stop times, and days of the week. |
 | Speed limiter | A global limit (toggle it from the status bar) and a limit per download. |
 | Batch download | Paste a list of links, or use a `*` wildcard pattern over numbers or letters with zero-padding. |
-| Browser integration | A browser extension (`extension/`) adds **Download with Grabbit** to the link menu and hands matching browser downloads to the app, cookies included. |
+| Browser integration | Extensions for **Chrome**, **Edge** and **Firefox**: **Download with Grabbit**, **Download selected links** and **Download all links** in the right-click menu, and browser downloads of captured file types are handed to the app, cookies included. See [browser extensions](docs/browser-extensions.md). |
 | Clipboard monitoring | Copying a download link opens the Add dialog (desktop app). |
 | Duplicate handling | Renames to `file (1).zip`, or overwrites. |
 | Completion | A toast with **Open** and **Open folder**, a native notification, and taskbar progress. |
@@ -88,7 +90,8 @@ npm run dist
 
 To try it without the internet, start the local test server, then add e.g.
 `http://127.0.0.1:7400/files/big.iso?mb=200&kbps=800`. It supports Range requests, caps the speed of each connection,
-and has `/norange/`, `/redirect/` and `/expired/` variants.
+and has `/norange/`, `/redirect/` and `/expired/` variants, plus a `/page` of links for the extension's "Download all
+links".
 
 ```bash
 npm run test-server
@@ -100,11 +103,19 @@ To run the engine tests (segmentation, pause/resume, no-Range fallback, retries,
 npm test
 ```
 
-### Browser extension
+### Browser extensions
 
-Open `chrome://extensions` (or `edge://extensions`), turn on Developer mode, choose **Load unpacked** and select the
-`extension/` folder. The extension talks to the app on `127.0.0.1:7310/capture`. The engine accepts calls there only from
-extension origins that send an `X-Grabbit-Capture` header, so web pages cannot use it.
+```bash
+npm run build:extensions
+```
+
+This builds the Chrome, Edge and Firefox extensions into `extension/dist/`. To try one, load `extension/dist/chrome`
+(or `edge`) with **Load unpacked** in `chrome://extensions`, or load `extension/dist/grabbit-firefox-<version>.zip` in
+Firefox's `about:debugging`. [docs/browser-extensions.md](docs/browser-extensions.md) covers installing and publishing to
+the Chrome Web Store, Edge Add-ons and addons.mozilla.org.
+
+The extension talks to the app on `127.0.0.1:7310/capture`. The engine accepts only requests that carry an
+`X-Grabbit-Capture` header and no web-page origin, so web pages cannot use it.
 
 ## Layout
 
@@ -124,9 +135,9 @@ ui/          React + Vite + zustand + lucide (Rowlit's structure)
   src/theme/      tokens.css (light/dark), app.css
 desktop/     Electron main + preload: starts the engine as a utility process, window, tray,
              clipboard watcher, notifications, folder picker
-extension/   Chromium MV3 extension
+extension/   browser extension: one source (src/) for Chrome, Edge and Firefox
 shared/      protocol.ts: wire types shared by the engine and the UI
-scripts/     run.mjs (dev and start launchers), test-server.mjs
+scripts/     run.mjs (dev and start launchers), build-extensions.mjs, test-server.mjs
 ```
 
 ## Keyboard

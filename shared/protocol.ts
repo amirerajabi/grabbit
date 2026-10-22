@@ -177,6 +177,8 @@ export type BulkAction = 'start' | 'pause' | 'remove' | 'delete' | 'redownload' 
 export interface CaptureRequest {
   id: string;
   url: string;
+  /** "Download all links": several addresses at once; they open in the Batch dialog to pick from. */
+  urls?: string[];
   fileName?: string;
   referer?: string;
   headers?: Record<string, string>;
