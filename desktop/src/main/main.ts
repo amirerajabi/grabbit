@@ -23,8 +23,7 @@ let updater: Updater | null = null;
 const pendingLinks: string[] = [];
 
 const watcher = new ClipboardWatcher((url) => {
-  // Bring the window up with the Add dialog, like IDM's clipboard catcher.
-  showWindow();
+  // The window decides whether the link is new; if it is, it asks to come to the front (CH.bringToFront).
   win?.webContents.send(CH.clipboardUrl, url);
 });
 
@@ -86,6 +85,32 @@ function showWindow(): void {
   if (win.isMinimized()) win.restore();
   win.show();
   win.focus();
+}
+
+/**
+ * Raise the window over the browser for a captured link, like IDM's download dialog. Windows refuses focus to a
+ * background app (it only flashes the taskbar button), but lets a window that is briefly always-on-top come forward.
+ */
+function bringToFront(): void {
+  if (!win) openWindow();
+  const w = win;
+  if (!w) return;
+  if (w.isMinimized()) w.restore();
+  if (!w.isVisible()) w.show();
+  w.setAlwaysOnTop(true, 'screen-saver');
+  w.moveTop();
+  w.focus();
+  if (process.platform === 'darwin') app.focus({ steal: true });
+  // Drop "always on top" once it is in front, so it behaves like any other window again. When Windows kept the keyboard
+  // with the app you are typing in, the window is still on top and its taskbar button flashes until you click it.
+  setTimeout(() => {
+    if (w.isDestroyed()) return;
+    w.setAlwaysOnTop(false);
+    if (!w.isFocused()) {
+      w.flashFrame(true);
+      w.once('focus', () => w.flashFrame(false));
+    }
+  }, 300);
 }
 
 function sendCommand(command: string): void {
@@ -170,6 +195,7 @@ function installIpc(): void {
     watcher.configure(prefs.clipboardMonitor, prefs.captureExtensions);
     updater?.configure(prefs.autoUpdate);
   });
+  ipcMain.on(CH.bringToFront, bringToFront);
   ipcMain.handle(CH.updateGet, () => updater?.current ?? null);
   ipcMain.handle(CH.updateCheck, () => updater?.check() ?? null);
   ipcMain.handle(CH.updateInstall, () => {

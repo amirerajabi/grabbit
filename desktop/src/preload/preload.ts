@@ -32,6 +32,7 @@ contextBridge.exposeInMainWorld('grabbit', {
       autoUpdate: p.autoUpdate !== false,
     }),
   appVersion: ipcRenderer.sendSync(CH.appVersion) as string,
+  bringToFront: () => ipcRenderer.send(CH.bringToFront),
   getUpdateStatus: () => ipcRenderer.invoke(CH.updateGet),
   checkForUpdates: () => ipcRenderer.invoke(CH.updateCheck),
   installUpdate: (): Promise<boolean> => ipcRenderer.invoke(CH.updateInstall),

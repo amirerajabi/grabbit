@@ -13,6 +13,7 @@ export const CH = {
   updateCheck: 'grabbit:update-check',
   updateInstall: 'grabbit:update-install',
   appVersion: 'grabbit:app-version',
+  bringToFront: 'grabbit:bring-to-front',
 } as const;
 
 /** additionalArguments passed to the renderer: --grabbit-engine=<url> --grabbit-token=<token> --grabbit-titlebar=<kind> */

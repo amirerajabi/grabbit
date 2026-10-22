@@ -16,6 +16,8 @@ export interface DesktopBridge {
   setTheme(theme: 'light' | 'dark', colors: { bg: string; fg: string }): void;
   /** Settings the desktop shell acts on itself (clipboard watcher, close-to-tray, update checks). */
   setPreferences(p: { clipboardMonitor: boolean; captureExtensions: string[]; minimizeToTray: boolean; autoUpdate: boolean }): void;
+  /** Show the window over other apps (a link arrived from the browser or the clipboard). */
+  bringToFront(): void;
   /** The desktop app's version ('' in a browser). */
   appVersion: string;
   /** null: no updater (browser build). */
@@ -58,6 +60,7 @@ function browserPlatform(): Platform {
     setTheme: noop,
     setPreferences: noop,
     appVersion: '',
+    bringToFront: () => window.focus(),
     getUpdateStatus: async () => null,
     checkForUpdates: async () => null,
     installUpdate: async () => false,

@@ -50,6 +50,8 @@ function onEvent(e: EngineEvent): void {
       useEngine.getState().setQueues(e.queues);
       return;
     case 'capture':
+      // A link from the browser: show the dialog over the browser, like IDM, not inside a hidden window.
+      getPlatform().bringToFront();
       if (e.request.urls) {
         useUi.getState().set({ batchOpen: true, batchPrefill: { urls: e.request.urls, referer: e.request.referer, headers: e.request.headers } });
         return;
@@ -82,6 +84,7 @@ export function boot(): void {
   getPlatform().onClipboardUrl((url) => {
     // Already in the list (or copied from it with Copy address): nothing to offer.
     if (Object.values(useDownloads.getState().items).some((d) => d.url === url)) return;
+    getPlatform().bringToFront();
     useUi.getState().queueAdd({ url });
   });
 }
