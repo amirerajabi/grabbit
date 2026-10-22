@@ -5,3 +5,4 @@ release/
 .dev-data/
 *.dlpart
 *.tsbuildinfo
+.claude/settings.local.json
