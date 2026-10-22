@@ -1,0 +1,26 @@
+{
+  "name": "grabbit-desktop",
+  "productName": "Grabbit",
+  "version": "1.0.0",
+  "description": "Grabbit: a fast, segmented download manager for Windows and macOS",
+  "author": "Grabbit contributors",
+  "license": "MIT",
+  "private": true,
+  "main": "out/main.js",
+  "type": "commonjs",
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "bundle": "node build/bundle.mjs",
+    "build": "npm run typecheck && npm run bundle",
+    "start": "npm run build && electron .",
+    "dist": "npm run build && electron-builder --win nsis --x64 --publish never",
+    "dist:dir": "npm run build && electron-builder --win dir --x64 --publish never"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "electron": "^33.2.1",
+    "electron-builder": "^25.1.8",
+    "esbuild": "^0.24.0",
+    "typescript": "~5.7.2"
+  }
+}

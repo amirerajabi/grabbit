@@ -1,0 +1,208 @@
+/*
+ * Grabbit design tokens: the single place where colours are written down; every component uses these variables.
+ * Theme is switched by [data-theme] on <html> (theme/theme.ts); 'system' follows the OS live.
+ */
+
+/* ------------------------------------------------------------------ light */
+:root,
+:root[data-theme='light'] {
+  color-scheme: light;
+
+  --bg-app: #f5f6f8;
+  --bg-panel: #ffffff;
+  --bg-elevated: #ffffff;
+  --bg-hover: #eceef2;
+  --bg-selected: #dde8fb;
+  --bg-selected-inactive: #e7eaef;
+  --bg-sunken: #eef0f3;
+  --bg-active: #e2e5ea;
+  --bg-input: #ffffff;
+  --bg-overlay: rgb(17 20 26 / 32%);
+  --bg-row-alt: #fafbfc;
+  --border: #ccd1d9;
+  --border-subtle: #e8ebef;
+  --border-strong: #8a919c;
+  --fg: #1c1f24;
+  --fg-muted: #5f6673;
+  --fg-disabled: #a0a6b0;
+  --accent: #2563eb;
+  --accent-hover: #1d4ed8;
+  --accent-fg: #ffffff;
+  --accent-soft: #ecf2fe;
+  --accent-soft-strong: #d3e1fb;
+  --focus-ring: #2563eb;
+  --success: #15803d;
+  --success-soft: #ebf7ef;
+  --success-fg: #ffffff;
+  --warning: #b45309;
+  --warning-soft: #fdf3e6;
+  --danger: #b91c1c;
+  --danger-soft: #fcebeb;
+  --danger-text: #b91c1c;
+  --danger-fg: #ffffff;
+  --info: #0e7490;
+  --info-soft: #e5f4f7;
+  --mark-bg: rgb(250 204 21 / 35%);
+
+  /* progress and the segment map */
+  --progress-track: #e3e6eb;
+  --progress-fill: #2563eb;
+  --progress-done: #16a34a;
+  --progress-paused: #8a919c;
+  --progress-error: #dc2626;
+  --segment-active: #3b82f6;
+  --segment-done: #93b4f3;
+  --segment-edge: rgb(16 24 40 / 25%);
+
+  /* category tints (file-type icons) */
+  --cat-general: #5f6673;
+  --cat-compressed: #b45309;
+  --cat-documents: #2563eb;
+  --cat-music: #be185d;
+  --cat-programs: #0f766e;
+  --cat-video: #7c3aed;
+
+  --shadow-1: 0 1px 2px rgb(16 24 40 / 6%);
+  --shadow-popup: 0 8px 28px rgb(16 24 40 / 14%), 0 0 0 1px rgb(16 24 40 / 6%);
+  --shadow-dialog: 0 24px 64px rgb(16 24 40 / 22%), 0 0 0 1px rgb(16 24 40 / 6%);
+  --scrollbar: rgb(0 0 0 / 18%);
+  --scrollbar-hover: rgb(0 0 0 / 32%);
+
+  /* glass top bar */
+  --glass-bg: rgb(255 255 255 / 62%);
+  --glass-bg-native: rgb(255 255 255 / 45%);
+  --glass-border: rgb(16 24 40 / 10%);
+  --glass-shadow: 0 1px 2px rgb(16 24 40 / 5%), 0 6px 16px -10px rgb(16 24 40 / 22%);
+  --glass-hover: rgb(16 24 40 / 6%);
+  --glass-active: rgb(16 24 40 / 10%);
+  --glass-input: rgb(255 255 255 / 72%);
+  --tab-active-shadow: 0 1px 3px rgb(16 24 40 / 9%);
+}
+
+/* ------------------------------------------------------------------- dark */
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  --bg-app: #1b1d21;
+  --bg-panel: #24272d;
+  --bg-elevated: #2c3038;
+  --bg-hover: #30343c;
+  --bg-selected: #2e4466;
+  --bg-selected-inactive: #30343c;
+  --bg-sunken: #1f2125;
+  --bg-active: #383d46;
+  --bg-input: #1f2125;
+  --bg-overlay: rgb(0 0 0 / 55%);
+  --bg-row-alt: #22252a;
+  --border: #41464f;
+  --border-subtle: #30343c;
+  --border-strong: #6f7682;
+  --fg: #e6e8eb;
+  --fg-muted: #9aa1ab;
+  --fg-disabled: #646a74;
+  --accent: #5b9cff;
+  --accent-hover: #7cb0ff;
+  --accent-fg: #0b1220;
+  --accent-soft: #233148;
+  --accent-soft-strong: #2b3f5f;
+  --focus-ring: #8ab4ff;
+  --success: #4ade80;
+  --success-soft: #1d3326;
+  --success-fg: #0b1220;
+  --warning: #fbbf24;
+  --warning-soft: #3a3020;
+  --danger: #f87171;
+  --danger-soft: #3d2526;
+  --danger-text: #fca5a5;
+  --danger-fg: #1b1d21;
+  --info: #67e8f9;
+  --info-soft: #1b3439;
+  --mark-bg: rgb(250 204 21 / 28%);
+
+  --progress-track: #353a43;
+  --progress-fill: #5b9cff;
+  --progress-done: #4ade80;
+  --progress-paused: #6f7682;
+  --progress-error: #f87171;
+  --segment-active: #5b9cff;
+  --segment-done: #2f4f80;
+  --segment-edge: rgb(0 0 0 / 45%);
+
+  --cat-general: #9aa1ab;
+  --cat-compressed: #fbbf24;
+  --cat-documents: #5b9cff;
+  --cat-music: #f472b6;
+  --cat-programs: #2dd4bf;
+  --cat-video: #b794f6;
+
+  --shadow-1: 0 1px 2px rgb(0 0 0 / 30%);
+  --shadow-popup: 0 10px 32px rgb(0 0 0 / 50%), 0 0 0 1px rgb(255 255 255 / 6%);
+  --shadow-dialog: 0 24px 72px rgb(0 0 0 / 60%), 0 0 0 1px rgb(255 255 255 / 7%);
+  --scrollbar: rgb(255 255 255 / 16%);
+  --scrollbar-hover: rgb(255 255 255 / 30%);
+
+  --glass-bg: rgb(36 39 45 / 66%);
+  --glass-bg-native: rgb(36 39 45 / 45%);
+  --glass-border: rgb(255 255 255 / 8%);
+  --glass-shadow: 0 1px 2px rgb(0 0 0 / 25%), 0 6px 16px -10px rgb(0 0 0 / 60%);
+  --glass-hover: rgb(255 255 255 / 7%);
+  --glass-active: rgb(255 255 255 / 11%);
+  --glass-input: rgb(0 0 0 / 18%);
+  --tab-active-shadow: 0 1px 3px rgb(0 0 0 / 35%);
+}
+
+/* ------------------------------------------------- theme-independent scale */
+:root {
+  --brand-mark-tile-top: #24345e;
+  --brand-mark-tile-bottom: #0b1430;
+  --brand-mark-row: #5a6e9e;
+  --brand-mark-lit-start: #ffc54d;
+  --brand-mark-lit-end: #ff6a5c;
+
+  --font-ui: 'Segoe UI Variable Text', 'Segoe UI', -apple-system, BlinkMacSystemFont, 'SF Pro Text', Inter, system-ui, sans-serif;
+  --font-mono: 'Cascadia Code', 'JetBrains Mono', 'SF Mono', Menlo, Consolas, 'Courier New', monospace;
+  --text-xs: 11px;
+  --text-sm: 12px;
+  --text-md: 13px;
+  --text-lg: 15px;
+  --text-xl: 20px;
+  --line-height: 1.4;
+  --weight-regular: 400;
+  --weight-strong: 600;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+
+  --row-h: 30px;
+  --tree-row-h: 28px;
+  --toolbar-h: 44px;
+  --statusbar-h: 24px;
+  --topbar-h: 40px;
+  --input-h: 28px;
+  --input-h-sm: 24px;
+  --dialog-pad: 20px;
+  --panel-pad: 12px;
+  --icon-size: 16px;
+  --icon-size-sm: 14px;
+  --radius: 6px;
+  --radius-sm: 4px;
+  --radius-lg: 10px;
+  --focus-ring-width: 2px;
+  --focus-ring-offset: 1px;
+  --glass-filter: blur(18px) saturate(170%);
+
+  --ease: cubic-bezier(0.2, 0, 0, 1);
+  --dur-fast: 90ms;
+  --dur: 160ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --dur-fast: 0ms;
+    --dur: 0ms;
+  }
+}

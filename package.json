@@ -1,0 +1,18 @@
+{
+  "name": "grabbit",
+  "private": true,
+  "license": "MIT",
+  "version": "1.0.0",
+  "description": "Grabbit: an IDM-style segmented download manager (Electron + React + Node engine)",
+  "scripts": {
+    "setup": "npm --prefix engine install && npm --prefix ui install && npm --prefix desktop install",
+    "dev": "node scripts/run.mjs browser",
+    "dev:desktop": "node scripts/run.mjs desktop-dev",
+    "build": "npm --prefix engine run build && npm --prefix ui run build && npm --prefix desktop run build",
+    "start": "npm run build && node scripts/run.mjs desktop",
+    "dist": "npm run build && npm --prefix desktop run dist",
+    "test": "npm --prefix engine test",
+    "test-server": "node scripts/test-server.mjs",
+    "typecheck": "npm --prefix engine run typecheck && npm --prefix ui run typecheck && npm --prefix desktop run typecheck"
+  }
+}

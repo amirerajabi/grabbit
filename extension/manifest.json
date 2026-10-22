@@ -1,0 +1,11 @@
+{
+  "manifest_version": 3,
+  "name": "Grabbit",
+  "version": "1.0.0",
+  "description": "Send links and downloads to the Grabbit download manager.",
+  "permissions": ["contextMenus", "downloads", "cookies", "storage"],
+  "host_permissions": ["<all_urls>", "http://127.0.0.1:7310/*"],
+  "background": { "service_worker": "background.js" },
+  "action": { "default_popup": "popup.html", "default_title": "Grabbit", "default_icon": "icon.png" },
+  "icons": { "32": "icon.png", "128": "icon.png" }
+}

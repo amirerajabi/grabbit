@@ -1,0 +1,39 @@
+name: CI
+
+# Typecheck every package, run the engine tests and build the UI on every push and pull request.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    name: Typecheck, test, build
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            engine/package-lock.json
+            ui/package-lock.json
+            desktop/package-lock.json
+      - name: Install
+        env:
+          ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
+        run: |
+          npm ci --prefix engine
+          npm ci --prefix ui
+          npm ci --prefix desktop
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Engine tests
+        run: npm test
+      - name: Build UI
+        run: npm --prefix ui run build

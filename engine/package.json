@@ -1,0 +1,26 @@
+{
+  "name": "grabbit-engine",
+  "private": true,
+  "license": "MIT",
+  "version": "1.0.0",
+  "description": "Grabbit download engine: segmented HTTP(S) downloads, queues and scheduler behind a local HTTP + WebSocket API",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts --port 7310 --token dev --data-dir ../.dev-data",
+    "start": "tsx src/index.ts --port 7310 --token dev --data-dir ../.dev-data",
+    "typecheck": "tsc --noEmit",
+    "bundle": "esbuild src/index.ts --bundle --platform=node --target=node20 --format=cjs --outfile=dist/engine.cjs",
+    "build": "npm run typecheck && npm run bundle",
+    "test": "tsx --test test/*.test.ts"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "@types/ws": "^8.5.13",
+    "esbuild": "^0.24.0",
+    "tsx": "^4.19.2",
+    "typescript": "~5.7.2"
+  }
+}

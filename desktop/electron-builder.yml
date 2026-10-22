@@ -1,0 +1,43 @@
+appId: com.grabbit.app
+productName: Grabbit
+copyright: Grabbit contributors
+directories:
+  output: release
+  buildResources: build
+# Package the Electron already installed in node_modules instead of downloading it again from GitHub.
+electronDist: node_modules/electron/dist
+files:
+  - out/**
+  - package.json
+extraResources:
+  - from: ../engine/dist/engine.cjs
+    to: engine/engine.cjs
+  - from: ../ui/dist
+    to: ui
+  - from: build/icon.ico
+    to: icon.ico
+  - from: build/icon.png
+    to: icon.png
+  - from: build/tray.png
+    to: tray.png
+# No spaces in file names: GitHub renames release assets that contain them.
+win:
+  target: nsis
+  icon: build/icon.ico
+  artifactName: ${productName}-Setup-${version}.${ext}
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+mac:
+  icon: build/icon.png
+  category: public.app-category.utilities
+  artifactName: ${productName}-${version}-mac-${arch}.${ext}
+  # Unsigned (ad-hoc) unless Developer ID secrets are configured.
+  identity: null
+linux:
+  target: AppImage
+  icon: build/icon.png
+  category: Network
+  artifactName: ${productName}-${version}-${arch}.${ext}
