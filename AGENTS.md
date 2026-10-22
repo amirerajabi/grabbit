@@ -21,7 +21,8 @@ Read [docs/STATUS.md](docs/STATUS.md) first: what is released, what is on `main`
 
 ## Commands
 
-Run from the repository root.
+Run from the repository root. The development machine is Windows. Command examples use Git Bash (POSIX `sh`) unless
+they are Windows-specific (process, window and installer checks), which use PowerShell and say so.
 
 ```bash
 npm run setup              # npm install in engine, ui, desktop
@@ -29,16 +30,18 @@ npm run typecheck          # all three packages
 npm test                   # engine tests (~25 s, local servers only)
 npm run build              # engine bundle + UI + desktop bundle
 npm start                  # build, then launch Electron
-npm run dev                # engine (127.0.0.1:7310, token "dev", data in .dev-data/) + Vite on :5173
-npm run dev:desktop        # Vite + Electron
+npm run dev                # engine (token "dev", data in .dev-data/) + Vite on :5173; engine on 7310, or a free port if taken
+npm run dev:desktop        # Vite + Electron (own profile in .dev-data/desktop)
 npm run build:extensions   # extension/dist/{chrome,edge,firefox} + zips
 npm run test:extensions    # load the extensions in installed Chrome/Edge/Firefox and exercise them
 npm run test-server        # files on http://127.0.0.1:7400/files/<name>?mb=N&kbps=K, plus /page, /norange, /redirect, /expired
 npm run dist               # Windows installer into desktop/release/
 ```
 
-A change is done when `npm run typecheck` and `npm test` pass. Run `npm run test:extensions` as well if you touched
-`extension/`, `/capture` in `engine/src/http/server.ts`, or capture handling in the UI.
+A change is done when `npm run typecheck`, `npm test` and `npm run build` pass (CI runs the same, plus the extension
+build and the Firefox lint). Run `npm run test:extensions` as well if you touched `extension/`, `/capture` in
+`engine/src/http/server.ts`, or capture handling in the UI. Check UI changes in the running app (`dev-run` skill), not
+only by typechecking.
 
 ## Rules
 

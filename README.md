@@ -73,8 +73,9 @@ For development:
 npm run dev
 ```
 
-This runs the engine on `127.0.0.1:7310` with token `dev` plus Vite. Open http://localhost:5173 in a browser. It keeps
-its state in `.dev-data/`, separate from the installed app.
+This runs the engine (token `dev`) plus Vite. Open http://localhost:5173 in a browser. The engine uses port 7310, or a
+free port when an installed Grabbit already holds 7310, and the UI is pointed at it. Development state lives in
+`.dev-data/`, separate from the installed app.
 
 ```bash
 npm run dev:desktop

@@ -2,15 +2,9 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "engine",
-      "runtimeExecutable": "npm",
-      "runtimeArgs": ["--prefix", "engine", "run", "dev"],
-      "port": 7310
-    },
-    {
-      "name": "ui",
-      "runtimeExecutable": "npm",
-      "runtimeArgs": ["--prefix", "ui", "run", "dev"],
+      "name": "dev",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["scripts/run.mjs", "browser"],
       "port": 5173
     }
   ]
