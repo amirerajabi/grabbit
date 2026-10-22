@@ -2,7 +2,7 @@
   "name": "grabbit",
   "private": true,
   "license": "MIT",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Grabbit: an IDM-style segmented download manager (Electron + React + Node engine)",
   "scripts": {
     "setup": "npm --prefix engine install && npm --prefix ui install && npm --prefix desktop install",

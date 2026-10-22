@@ -8,7 +8,7 @@ import type { DownloadManager } from '../core/DownloadManager';
 import { openPath } from '../core/shell';
 import { errorMessage, TEMP_EXT } from '../core/util';
 
-export const ENGINE_VERSION = '1.0.1';
+export const ENGINE_VERSION = '1.0.2';
 
 type Handler = (ctx: { body: any; params: Record<string, string>; query: URLSearchParams }) => Promise<unknown> | unknown;
 

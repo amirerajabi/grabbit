@@ -7,17 +7,18 @@ _Last updated: 2026-10-22_
 
 ## Released
 
-**v1.0.1** (2026-10-22): https://github.com/amirerajabi/grabbit/releases/tag/v1.0.1
+**v1.0.2** (2026-10-22): https://github.com/amirerajabi/grabbit/releases/tag/v1.0.2
 
+- Brings the window to the front when a link arrives from the extension or the clipboard (`f765f99`).
 - Windows installer, macOS DMG/ZIP (Apple silicon), Linux AppImage, and extension packages for Chrome, Edge and Firefox.
-- Auto-update metadata (`latest*.yml`) verified: the installer's SHA-512 matches `latest.yml`.
-- v1.0.0 was the first public release (in-app updates included).
+- v1.0.1 added the browser extensions; v1.0.0 was the first public release (in-app updates included).
 
 ## On `main`, not released yet
 
-- **Bring the window to the front when a link is captured** (`f765f99`). Links from the extension or the clipboard
-  used to open the Add dialog in a hidden window. The user asked to hold this back ("not yet") on 2026-10-22, so
-  release it only when they ask. It goes into the next version (1.0.2).
+Nothing.
+
+An icon and color redesign (the "split arrow" in indigo and mint) was tried and reverted at the user's request on
+2026-10-22. The current icon (navy tile, orange arrow) and blue accent stay.
 
 ## The developer's machine
 
@@ -46,5 +47,6 @@ builds arm64 only).
 
 | Version | Highlights |
 | --- | --- |
+| 1.0.2 | The window comes to the front with the Add dialog when a link is captured from the browser or the clipboard |
 | 1.0.1 | Browser extensions (Chrome, Edge, Firefox) with "Download all links"; fix for the extension's status check being refused (no `Origin` from Chromium); fix for quick settings changes crashing the engine |
 | 1.0.0 | First release: segmented downloads with dynamic splitting, resume, queues and scheduler, speed limiter, categories, batch, tray, clipboard monitor, auto-update |
