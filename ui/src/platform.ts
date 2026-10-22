@@ -1,3 +1,5 @@
+import type { UpdateStatus } from '../../shared/protocol';
+
 /**
  * What the UI needs from its host. In Electron the preload script exposes `window.grabbit`; in a plain browser
  * (npm run dev) the fallbacks below talk to the dev engine and skip the native bits.
@@ -12,8 +14,16 @@ export interface DesktopBridge {
   notify(title: string, body: string): void;
   setProgress(fraction: number): void;
   setTheme(theme: 'light' | 'dark', colors: { bg: string; fg: string }): void;
-  /** Settings the desktop shell acts on itself (clipboard watcher, close-to-tray). */
-  setPreferences(p: { clipboardMonitor: boolean; captureExtensions: string[]; minimizeToTray: boolean }): void;
+  /** Settings the desktop shell acts on itself (clipboard watcher, close-to-tray, update checks). */
+  setPreferences(p: { clipboardMonitor: boolean; captureExtensions: string[]; minimizeToTray: boolean; autoUpdate: boolean }): void;
+  /** The desktop app's version ('' in a browser). */
+  appVersion: string;
+  /** null: no updater (browser build). */
+  getUpdateStatus(): Promise<UpdateStatus | null>;
+  checkForUpdates(): Promise<UpdateStatus | null>;
+  /** Restart into a downloaded update; false when there is none. */
+  installUpdate(): Promise<boolean>;
+  onUpdateStatus(cb: (status: UpdateStatus) => void): () => void;
   onClipboardUrl(cb: (url: string) => void): () => void;
   onCommand(cb: (command: string) => void): () => void;
   readClipboard(): string;
@@ -47,6 +57,11 @@ function browserPlatform(): Platform {
     setProgress: noop,
     setTheme: noop,
     setPreferences: noop,
+    appVersion: '',
+    getUpdateStatus: async () => null,
+    checkForUpdates: async () => null,
+    installUpdate: async () => false,
+    onUpdateStatus: () => noop,
     onClipboardUrl: () => noop,
     onCommand: () => noop,
     readClipboard: () => '',

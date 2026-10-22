@@ -7,6 +7,7 @@ import { CH, type Preferences } from '../shared/channels';
 import { ClipboardWatcher } from './clipboard';
 import { startEngine, stopEngine, type EngineInfo } from './engine-process';
 import { iconPath, trayIconPath } from './paths';
+import { Updater } from './updater';
 import { createMainWindow, DARK, LIGHT, titleBarKind } from './window';
 
 const devUrl = process.env.GRABBIT_DEV_URL;
@@ -16,7 +17,8 @@ let win: BrowserWindow | null = null;
 let tray: Tray | null = null;
 let engine: EngineInfo | null = null;
 let quitting = false;
-let prefs: Preferences = { clipboardMonitor: true, captureExtensions: [], minimizeToTray: true };
+let prefs: Preferences = { clipboardMonitor: true, captureExtensions: [], minimizeToTray: true, autoUpdate: true };
+let updater: Updater | null = null;
 /** Links handed to us on the command line (`grabbit.exe <url>`) before the UI was ready. */
 const pendingLinks: string[] = [];
 
@@ -50,6 +52,8 @@ async function start(): Promise<void> {
     return;
   }
   pendingLinks.push(...linksIn(process.argv));
+  // A smoke test stays offline unless it points the updater at a test feed.
+  updater = await Updater.create((m) => console.log(m), !!process.env.GRABBIT_SMOKE_SHOT && !process.env.GRABBIT_UPDATE_FEED);
   installIpc();
   installMenu();
   openWindow();
@@ -101,6 +105,7 @@ function createTray(): void {
       { type: 'separator' },
       { label: 'Stop all downloads', click: () => sendCommand('download.pauseAll') },
       { label: 'Options…', click: () => sendCommand('view.settings') },
+      { label: 'Check for updates', click: () => sendCommand('app.checkUpdates') },
       { type: 'separator' },
       { label: 'Quit', click: quit },
     ]),
@@ -156,8 +161,27 @@ function installIpc(): void {
     win.setBackgroundColor(color);
   });
   ipcMain.on(CH.setPreferences, (_e, p: Preferences) => {
-    prefs = { clipboardMonitor: !!p?.clipboardMonitor, captureExtensions: Array.isArray(p?.captureExtensions) ? p.captureExtensions.map(String) : [], minimizeToTray: !!p?.minimizeToTray };
+    prefs = {
+      clipboardMonitor: !!p?.clipboardMonitor,
+      captureExtensions: Array.isArray(p?.captureExtensions) ? p.captureExtensions.map(String) : [],
+      minimizeToTray: !!p?.minimizeToTray,
+      autoUpdate: p?.autoUpdate !== false,
+    };
     watcher.configure(prefs.clipboardMonitor, prefs.captureExtensions);
+    updater?.configure(prefs.autoUpdate);
+  });
+  ipcMain.handle(CH.updateGet, () => updater?.current ?? null);
+  ipcMain.handle(CH.updateCheck, () => updater?.check() ?? null);
+  ipcMain.handle(CH.updateInstall, () => {
+    if (!updater) return false;
+    // quitAndInstall quits the app: let the close handler know it is a real quit, not "hide to tray".
+    quitting = true;
+    const ok = updater.quitAndInstall();
+    if (!ok) quitting = false;
+    return ok;
+  });
+  ipcMain.on(CH.appVersion, (e) => {
+    e.returnValue = app.getVersion();
   });
   ipcMain.on(CH.readClipboard, (e) => {
     e.returnValue = clipboard.readText();
@@ -181,7 +205,7 @@ function smokeShot(file: string): void {
       process.exitCode = 1;
     }
     quit();
-  }, 3000);
+  }, Number(process.env.GRABBIT_SMOKE_DELAY_MS) || 3000);
 }
 
 app.on('before-quit', (e) => {

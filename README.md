@@ -49,6 +49,7 @@ a glass top bar, a tabbed dock on the left, a toolbar, a status bar and a comman
 | Duplicate handling | Renames to `file (1).zip`, or overwrites. |
 | Completion | A toast with **Open** and **Open folder**, a native notification, and taskbar progress. |
 | Tray | Closing the window keeps the app running in the tray, and downloads continue. |
+| Automatic updates | Checks GitHub Releases at start and every 6 hours. On Windows and the Linux AppImage the update downloads in the background and installs with **Restart to update** (or on quit). Unsigned macOS builds show the new version with a link. |
 
 ## Getting started
 

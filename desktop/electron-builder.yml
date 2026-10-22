@@ -4,6 +4,14 @@ copyright: Grabbit contributors
 directories:
   output: release
   buildResources: build
+# In-app updates (src/main/updater.ts, electron-updater). Builds still run with `--publish never`; this config makes
+# electron-builder write resources/app-update.yml into the app and latest.yml / latest-mac.yml / latest-linux.yml plus
+# the .blockmap files next to the installers, which .github/workflows/release.yml uploads to the v<version> release.
+publish:
+  provider: github
+  owner: amirerajabi
+  repo: grabbit
+  releaseType: release
 # Package the Electron already installed in node_modules instead of downloading it again from GitHub.
 electronDist: node_modules/electron/dist
 files:

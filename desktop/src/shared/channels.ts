@@ -8,6 +8,11 @@ export const CH = {
   readClipboard: 'grabbit:read-clipboard',
   clipboardUrl: 'grabbit:clipboard-url',
   command: 'grabbit:command',
+  updateStatus: 'grabbit:update-status',
+  updateGet: 'grabbit:update-get',
+  updateCheck: 'grabbit:update-check',
+  updateInstall: 'grabbit:update-install',
+  appVersion: 'grabbit:app-version',
 } as const;
 
 /** additionalArguments passed to the renderer: --grabbit-engine=<url> --grabbit-token=<token> --grabbit-titlebar=<kind> */
@@ -21,4 +26,5 @@ export interface Preferences {
   clipboardMonitor: boolean;
   captureExtensions: string[];
   minimizeToTray: boolean;
+  autoUpdate: boolean;
 }

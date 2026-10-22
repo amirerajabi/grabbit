@@ -14,6 +14,7 @@ import {
   PauseCircle,
   Play,
   PlayCircle,
+  RefreshCw,
   RotateCcw,
   Search,
   Settings,
@@ -28,6 +29,7 @@ import { getPlatform, readClipboardText } from '../platform';
 import { ACTIVE, useDownloads, visibleItems } from '../store/downloads';
 import { useEngine } from '../store/engine';
 import { useUi } from '../store/ui';
+import { useUpdates } from '../store/updates';
 import { formatSpeed } from '../lib/format';
 import { matches } from './keys';
 
@@ -214,6 +216,16 @@ export const COMMANDS: Command[] = [
   { id: 'view.toggleDetails', label: 'Toggle details pane', icon: PanelBottom, shortcut: 'Mod+J', run: () => useUi.getState().setLayout({ detailsVisible: !useUi.getState().detailsVisible }) },
   { id: 'view.toggleTheme', label: 'Switch theme (system / dark / light)', icon: SunMoon, run: toggleTheme },
   { id: 'view.settings', label: 'Options…', icon: Settings, shortcut: 'Mod+,', run: () => useUi.getState().set({ settingsOpen: 'general' }) },
+  {
+    id: 'app.checkUpdates',
+    label: 'Check for updates',
+    icon: RefreshCw,
+    disabled: () => (getPlatform().kind === 'electron' ? null : 'Updates are part of the desktop app'),
+    run: () => {
+      useUi.getState().set({ settingsOpen: 'updates' });
+      return useUpdates.getState().check();
+    },
+  },
   { id: 'view.shortcuts', label: 'Keyboard shortcuts', icon: Keyboard, shortcut: 'Mod+/', run: () => useUi.getState().set({ shortcutsOpen: true }) },
 ];
 

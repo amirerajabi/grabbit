@@ -1,4 +1,5 @@
-import { Download, FolderOpen, Gauge, Globe, Info, Network, Settings, SlidersHorizontal } from 'lucide-react';
+import { Download, FolderOpen, Gauge, Globe, Info, LoaderCircle, Network, RefreshCw, Settings, SlidersHorizontal } from 'lucide-react';
+import { useUpdates } from '../../store/updates';
 import { useState, type ReactNode } from 'react';
 import type { Settings as SettingsT } from '../../../../shared/protocol';
 import { attempt } from '../../app/commands';
@@ -15,6 +16,7 @@ const SECTIONS: { id: SettingsSection; label: string; Icon: typeof Settings }[] 
   { id: 'saveto', label: 'Save to', Icon: FolderOpen },
   { id: 'speed', label: 'Speed limiter', Icon: Gauge },
   { id: 'integration', label: 'Browser & clipboard', Icon: Globe },
+  { id: 'updates', label: 'Updates', Icon: RefreshCw },
   { id: 'about', label: 'About', Icon: Info },
 ];
 
@@ -142,12 +144,16 @@ function Section({ id, s }: { id: SettingsSection; s: SettingsT }) {
           </div>
         </div>
       );
+    case 'updates':
+      return <UpdatesSection s={s} />;
     case 'about':
       return (
         <div className="settings-section about">
           <BrandMark size={48} />
           <h3>Grabbit</h3>
-          <p className="muted">Engine {useEngine.getState().version} · {electron ? 'desktop' : 'browser'} build</p>
+          <p className="muted">
+            {electron ? `Version ${getPlatform().appVersion} · ` : 'Browser build · '}engine {useEngine.getState().version}
+          </p>
           <ul className="about-list">
             <li>
               <Download size={14} /> Up to 32 connections per file, with dynamic splitting: a finished connection takes over half of the largest part still downloading.
@@ -162,6 +168,62 @@ function Section({ id, s }: { id: SettingsSection; s: SettingsT }) {
         </div>
       );
   }
+}
+
+const UPDATE_TEXT: Record<string, string> = {
+  idle: 'Not checked yet.',
+  checking: 'Checking for updates…',
+  'up-to-date': 'Grabbit is up to date.',
+  error: 'The last check failed.',
+};
+
+function UpdatesSection({ s }: { s: SettingsT }) {
+  const status = useUpdates((u) => u.status);
+  const manual = useUpdates((u) => u.manual);
+  const busy = manual || status?.state === 'checking';
+  let text = status ? UPDATE_TEXT[status.state] ?? '' : '';
+  if (status?.state === 'downloading') text = `Downloading Grabbit ${status.version}: ${status.percent ?? 0}%`;
+  if (status?.state === 'ready') text = `Grabbit ${status.version} is downloaded. Restart to install it, or it installs when you quit.`;
+  if (status?.state === 'available') text = `Grabbit ${status.version} is available. macOS only updates signed apps in place, so download it from the release page.`;
+  if (status?.state === 'disabled') text = status.message ?? 'Updates are not available in this build.';
+  return (
+    <div className="settings-section">
+      <h3>Updates</h3>
+      {!status ? (
+        <p className="muted">Updates are part of the desktop app.</p>
+      ) : (
+        <>
+          <div className="info-card">
+            <RefreshCw size={18} className="text-accent" />
+            <div className="flex-1">
+              <strong>Grabbit {status.currentVersion}</strong>
+              <p className={`muted${status.state === 'error' ? ' text-danger' : ''}`}>
+                {text}
+                {status.state === 'error' && status.message ? ` ${status.message}` : ''}
+              </p>
+            </div>
+          </div>
+          <div className="input-with-btn">
+            {status.state === 'ready' || status.state === 'available' ? (
+              <button className="btn btn-primary" onClick={() => void useUpdates.getState().install()}>
+                {status.state === 'ready' ? 'Restart and update' : 'Open the release page'}
+              </button>
+            ) : (
+              <button className="btn" disabled={busy || status.state === 'disabled' || status.state === 'downloading'} onClick={() => void useUpdates.getState().check()}>
+                {busy ? <LoaderCircle size={16} className="spin" /> : <RefreshCw size={16} />} Check for updates
+              </button>
+            )}
+          </div>
+          <Toggle
+            label="Check for updates automatically"
+            hint="At start and every 6 hours. On Windows and Linux new versions download in the background."
+            checked={s.autoUpdate}
+            onChange={(v) => save({ autoUpdate: v })}
+          />
+        </>
+      )}
+    </div>
+  );
 }
 
 function SaveToSection({ s }: { s: SettingsT }) {

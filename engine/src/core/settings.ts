@@ -28,6 +28,7 @@ export function defaultSettings(): Settings {
     ],
     theme: 'system',
     minimizeToTray: true,
+    autoUpdate: true,
   };
 }
 
@@ -53,5 +54,6 @@ export function mergeSettings(base: Settings, patch: Partial<Settings>): Setting
   }
   if (p.theme === 'system' || p.theme === 'light' || p.theme === 'dark') s.theme = p.theme;
   if (typeof p.minimizeToTray === 'boolean') s.minimizeToTray = p.minimizeToTray;
+  if (typeof p.autoUpdate === 'boolean') s.autoUpdate = p.autoUpdate;
   return s;
 }

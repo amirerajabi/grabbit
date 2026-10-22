@@ -1,4 +1,5 @@
-import { ArrowDownToLine, ClipboardList, Gauge, ListOrdered, Wifi, WifiOff } from 'lucide-react';
+import { ArrowDownCircle, ArrowDownToLine, CircleAlert, ClipboardList, Gauge, ListOrdered, LoaderCircle, RefreshCw, Wifi, WifiOff } from 'lucide-react';
+import { updateChip, useUpdates } from '../../store/updates';
 import { useMemo } from 'react';
 import { runCommand } from '../../app/commands';
 import { formatBytes, formatSpeed, pluralize } from '../../lib/format';
@@ -64,6 +65,7 @@ export function StatusBar() {
           Clipboard {settings.clipboardMonitor ? 'on' : 'off'}
         </button>
       )}
+      <UpdateChip />
       <button
         className={`sb-item sb-button${limiterOn ? ' sb-warn' : ''}`}
         title={limiterOn ? `Speed limiter on (${formatSpeed(settings!.speedLimit)}). Click to turn off.` : 'Speed limiter off. Click to turn on.'}
@@ -73,5 +75,35 @@ export function StatusBar() {
         {limiterOn ? `Limit ${formatSpeed(settings!.speedLimit)}` : 'No limit'}
       </button>
     </footer>
+  );
+}
+
+/**
+ * The update state at the right of the status bar (Rowlit's update chip): checking, download progress with a small bar,
+ * "Restart to update" once ready, a new version on macOS, or a quiet mark after a failed check.
+ */
+function UpdateChip() {
+  const status = useUpdates((s) => s.status);
+  const chip = updateChip(status);
+  if (!status || !chip) return null;
+  const ready = status.state === 'ready';
+  const error = status.state === 'error';
+  const Icon = status.state === 'checking' ? LoaderCircle : ready ? RefreshCw : error ? CircleAlert : ArrowDownCircle;
+  return (
+    <button
+      className={`sb-item sb-button sb-update tone-${chip.tone}`}
+      title={ready ? `${chip.text}. Click to restart now.` : error ? `${chip.text}: ${status.message ?? ''}` : chip.text}
+      aria-label={chip.text}
+      onClick={() => (ready || status.state === 'available' ? void useUpdates.getState().install() : useUi.getState().set({ settingsOpen: 'updates' }))}
+    >
+      <Icon size={12} className={status.state === 'checking' ? 'spin' : undefined} />
+      {/* a failed check is a quiet mark only: an offline machine should not carry a red label all day */}
+      {!error && <span>{chip.text}</span>}
+      {status.state === 'downloading' && (
+        <span className="sb-update-bar" aria-hidden="true">
+          <span className="sb-update-fill" style={{ width: `${status.percent ?? 0}%` }} />
+        </span>
+      )}
+    </button>
   );
 }

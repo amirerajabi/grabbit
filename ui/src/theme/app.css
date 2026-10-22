@@ -1446,6 +1446,32 @@ body.resizing-row .splitter-horizontal {
 .ws-closed {
   color: var(--danger);
 }
+.sb-update.tone-muted {
+  color: var(--fg-muted);
+}
+.sb-update.tone-accent {
+  color: var(--accent);
+}
+.sb-update.tone-success {
+  color: var(--success);
+  font-weight: var(--weight-strong);
+}
+.sb-update.tone-error {
+  color: var(--danger-text);
+}
+.sb-update-bar {
+  width: 48px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--progress-track);
+  overflow: hidden;
+}
+.sb-update-fill {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  transition: width 300ms linear;
+}
 
 /* ---------- menus ---------- */
 .menu-backdrop {

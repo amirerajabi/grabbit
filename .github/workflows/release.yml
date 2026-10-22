@@ -69,11 +69,14 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact }}
+          # latest*.yml + .blockmap files: what the in-app updater reads from the release.
           path: |
             desktop/release/*.exe
             desktop/release/*.dmg
             desktop/release/*.zip
             desktop/release/*.AppImage
+            desktop/release/*.blockmap
+            desktop/release/latest*.yml
           if-no-files-found: error
 
   publish:
@@ -89,6 +92,16 @@ jobs:
           path: artifacts
           merge-multiple: true
       - run: ls -la artifacts
+      # Every platform must ship its update metadata, or installed copies on it never see this release.
+      - name: Check update metadata
+        run: |
+          for f in latest.yml latest-mac.yml latest-linux.yml; do
+            test -f "artifacts/$f" || { echo "missing $f"; exit 1; }
+            grep -q "^version: ${TAG#v}$" "artifacts/$f" || { echo "$f is not version ${TAG#v}"; exit 1; }
+            for asset in $(grep -E '^\s+- url: ' "artifacts/$f" | awk '{print $3}'); do
+              test -f "artifacts/$asset" || { echo "$f names $asset, which is not in the release"; exit 1; }
+            done
+          done
       - uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ env.TAG }}

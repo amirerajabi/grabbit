@@ -5,6 +5,7 @@ import { getPlatform } from '../platform';
 import { ACTIVE, useDownloads } from '../store/downloads';
 import { useEngine } from '../store/engine';
 import { useUi } from '../store/ui';
+import { useUpdates } from '../store/updates';
 
 async function loadState(): Promise<void> {
   try {
@@ -20,7 +21,7 @@ async function loadState(): Promise<void> {
 
 function syncPreferences(): void {
   const s = useEngine.getState().settings;
-  if (s) getPlatform().setPreferences({ clipboardMonitor: s.clipboardMonitor, captureExtensions: s.captureExtensions, minimizeToTray: s.minimizeToTray });
+  if (s) getPlatform().setPreferences({ clipboardMonitor: s.clipboardMonitor, captureExtensions: s.captureExtensions, minimizeToTray: s.minimizeToTray, autoUpdate: s.autoUpdate });
 }
 
 /** Overall progress of what is running, for the taskbar / dock icon. */
@@ -69,6 +70,10 @@ export function boot(): void {
   if (started) return;
   started = true;
   connectEvents(onEvent, loadState);
+  // In-app updates (desktop): the current state now, then every change the main process pushes.
+  const platform = getPlatform();
+  void platform.getUpdateStatus().then((s) => s && useUpdates.getState().setStatus(s));
+  platform.onUpdateStatus((s) => useUpdates.getState().setStatus(s));
   // Clipboard monitoring (desktop): a copied download link opens the Add dialog, like IDM.
   getPlatform().onClipboardUrl((url) => {
     // Already in the list (or copied from it with Copy address): nothing to offer.

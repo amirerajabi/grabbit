@@ -114,6 +114,28 @@ export interface Settings {
   captureExtensions: string[];
   theme: ThemePref;
   minimizeToTray: boolean;
+  /** Check GitHub Releases for a new version at start and every few hours (desktop app). */
+  autoUpdate: boolean;
+}
+
+/**
+ * In-app updates (desktop): `install` downloads in the background and restarts into the new version (Windows, the
+ * Linux AppImage, signed macOS builds); `notify` only announces it with a link (unsigned macOS builds, which macOS
+ * refuses to update in place); `disabled` in development and unsupported builds.
+ */
+export type UpdateMode = 'install' | 'notify' | 'disabled';
+
+export interface UpdateStatus {
+  state: 'disabled' | 'idle' | 'checking' | 'up-to-date' | 'available' | 'downloading' | 'ready' | 'error';
+  mode: UpdateMode;
+  currentVersion: string;
+  /** The newer version, once one is found. */
+  version?: string;
+  /** Download progress, 0-100. */
+  percent?: number;
+  /** Why updates are disabled, or what went wrong. */
+  message?: string;
+  releaseUrl?: string;
 }
 
 export interface CategoryInfo {
