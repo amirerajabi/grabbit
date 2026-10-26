@@ -22,8 +22,8 @@ _Last updated: 2026-10-26_
 
 Nothing.
 
-The tag `v1.1.0` exists on GitHub without a release: its Linux and macOS builds failed (esbuild and ssh2's native
-add-ons), so the same features shipped as 1.1.1. Delete the tag only if the user agrees.
+There is no 1.1.0: its Linux and macOS builds failed (esbuild and ssh2's native add-ons), nothing was published, and
+the tag was deleted with the user's OK. The same features shipped as 1.1.1.
 
 An icon and color redesign (the "split arrow" in indigo and mint) was tried and reverted at the user's request on
 2026-10-22. The current icon (navy tile, orange arrow) and blue accent stay.
