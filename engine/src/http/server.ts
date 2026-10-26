@@ -75,6 +75,8 @@ export function createServer(manager: DownloadManager, token: string): http.Serv
   route('POST', '/api/when-done/cancel', () => (manager.cancelWhenDone(), { ok: true }));
   route('POST', '/api/downloads/:id/extract', ({ params, body }) => manager.extractNow(params.id, typeof body?.password === 'string' ? body.password : undefined));
   route('GET', '/api/tools', () => manager.tools.list());
+  route('POST', '/api/grab', ({ body }) => manager.grab(body ?? {}));
+  route('POST', '/api/grab/:id/stop', ({ params }) => (manager.stopGrab(params.id), { ok: true }));
   // Installing takes a while: answer at once, progress and the outcome arrive as "tools" events.
   route('POST', '/api/tools/:name/install', ({ params }) => {
     if (!TOOLS.includes(params.name as ToolName)) throw new HttpFailure(404, 'No such tool');

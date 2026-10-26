@@ -204,6 +204,27 @@ export interface ProbeResult {
   dir: string;
 }
 
+/** Site grabber: collect links to files from a page and the pages it links to. */
+export interface GrabRequest {
+  /** Chosen by the caller, so it can follow "grab" progress events and stop the crawl. */
+  id: string;
+  url: string;
+  /** 0 = only this page, 1 = also the pages it links to, and so on (at most 3). */
+  depth: number;
+  /** Follow only links to pages on the start page's site (files elsewhere are still collected). */
+  sameSite: boolean;
+  /** File extensions to collect, without the dot. */
+  extensions: string[];
+}
+
+export interface GrabResult {
+  files: string[];
+  pages: number;
+  /** Hit the page limit before the crawl was done. */
+  truncated: boolean;
+  stopped: boolean;
+}
+
 export interface AddDownloadRequest {
   url: string;
   fileName?: string;
@@ -280,6 +301,7 @@ export type EngineEvent =
   | { type: 'download.updated'; item: DownloadItem }
   | { type: 'download.removed'; ids: string[] }
   | { type: 'tools'; tools: ToolInfo[] }
+  | { type: 'grab'; id: string; pages: number; files: number }
   | { type: 'progress'; entries: ProgressEntry[]; totalSpeed: number }
   | { type: 'queues'; queues: Queue[] }
   | { type: 'settings'; settings: Settings }

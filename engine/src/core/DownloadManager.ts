@@ -7,6 +7,8 @@ import type {
   CaptureRequest,
   DownloadItem,
   EngineEvent,
+  GrabRequest,
+  GrabResult,
   ProbeResult,
   ProgressEntry,
   Queue,
@@ -18,12 +20,13 @@ import type {
 import { categoryFolder, categoryFor, extensionOf, isCategoryId } from './categories';
 import { DownloadTask, type TaskHost } from './DownloadTask';
 import { archiveName, extractArchive, extractDir } from './extract';
+import { grabSite } from './grabber';
 import { RateLimiter, SpeedMeter } from './limiter';
 import { hashFile, isHashAlgo, parseChecksum, runPowerAction, scanFile } from './post';
 import { parseProxyUrl, setProxySettings } from './proxy';
 import { SecretStore } from './secrets';
 import { AuthError, setCredentialLookup } from './http';
-import { isSupportedUrl, probeAny } from './sources';
+import { isSupportedUrl, probeAny, requestHeaders } from './sources';
 import { setKnownHostsFile } from './sources/sftp';
 import { openPath } from './shell';
 import { defaultSettings, mergeSettings } from './settings';
@@ -62,6 +65,8 @@ export class DownloadManager extends EventEmitter implements TaskHost {
   private posting = new Set<string>();
   /** The pending when-done action: timer and the time it fires. */
   private whenDoneTimer: { timer: NodeJS.Timeout; at: number } | null = null;
+  /** Site grabber crawls in progress, by the caller's id, so they can be stopped. */
+  private grabs = new Map<string, AbortController>();
   /** "queueId@yyyy-mm-dd HH:mm:start|stop" of the last schedule action, so a minute fires once. */
   private fired = new Set<string>();
 
@@ -445,6 +450,39 @@ export class DownloadManager extends EventEmitter implements TaskHost {
     const s = this.settingsValue;
     const sub = s.useCategoryFolders ? categoryFolder(category) : '';
     return sub ? path.join(s.downloadDir, sub) : s.downloadDir;
+  }
+
+  /** Site grabber: crawl from a page and return the links to files of the chosen types. */
+  async grab(raw: Partial<GrabRequest>): Promise<GrabResult> {
+    const url = String(raw.url ?? '').trim();
+    if (!/^https?:\/\//i.test(url)) throw new Error('Enter the address of a web page (http or https)');
+    const req: GrabRequest = {
+      id: typeof raw.id === 'string' && raw.id ? raw.id.slice(0, 64) : newId(),
+      url,
+      depth: clamp(Math.round(Number(raw.depth) || 0), 0, 3),
+      sameSite: raw.sameSite !== false,
+      extensions: Array.isArray(raw.extensions) ? raw.extensions.filter((x): x is string => typeof x === 'string').slice(0, 200) : this.settingsValue.captureExtensions,
+    };
+    if (req.extensions.length === 0) throw new Error('Choose at least one file type');
+    this.grabs.get(req.id)?.abort();
+    const ac = new AbortController();
+    this.grabs.set(req.id, ac);
+    let last = 0;
+    try {
+      return await grabSite(req, requestHeaders({ headers: {}, referer: null }, this.settingsValue), this.settingsValue.timeoutSec * 1000, ac.signal, (pages, files) => {
+        const now = Date.now();
+        if (now - last < 250) return;
+        last = now;
+        this.emitEvent({ type: 'grab', id: req.id, pages, files });
+      });
+    } finally {
+      if (this.grabs.get(req.id) === ac) this.grabs.delete(req.id);
+    }
+  }
+
+  /** Stops a crawl; it returns what it found so far. */
+  stopGrab(id: string): void {
+    this.grabs.get(id)?.abort();
   }
 
   async probe(url: string, headers: Record<string, string> = {}, referer?: string): Promise<ProbeResult> {

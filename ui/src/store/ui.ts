@@ -50,6 +50,8 @@ interface UiState {
   loginPrompt: { downloadId: string | null; site: string; realm: string | null; failed: boolean } | null;
   /** Links handed over by the browser extension ("Download all links"), shown in the Batch dialog to pick from. */
   batchPrefill: { urls: string[]; referer?: string; headers?: Record<string, string> } | null;
+  /** Progress of the site grabber's crawl in the Batch dialog. */
+  grabProgress: { id: string; pages: number; files: number } | null;
   propertiesFor: string | null;
   queuesOpen: string | null;
   settingsOpen: SettingsSection | null;
@@ -64,7 +66,7 @@ interface UiState {
   /** Open now, or after the dialog that is already open. */
   queueAdd(s: AddDialogState): void;
   closeAdd(): void;
-  set(p: Partial<Pick<UiState, 'batchOpen' | 'loginPrompt' | 'batchPrefill' | 'propertiesFor' | 'queuesOpen' | 'settingsOpen' | 'paletteOpen' | 'shortcutsOpen'>>): void;
+  set(p: Partial<Pick<UiState, 'batchOpen' | 'loginPrompt' | 'batchPrefill' | 'grabProgress' | 'propertiesFor' | 'queuesOpen' | 'settingsOpen' | 'paletteOpen' | 'shortcutsOpen'>>): void;
   askConfirm(c: Omit<ConfirmState, 'resolve'>): Promise<{ ok: boolean; checked: boolean }>;
   resolveConfirm(ok: boolean, checked?: boolean): void;
   toast(t: Omit<Toast, 'id'>): void;
@@ -98,6 +100,7 @@ export const useUi = create<UiState>((set, get) => ({
   batchOpen: false,
   loginPrompt: null,
   batchPrefill: null,
+  grabProgress: null,
   propertiesFor: null,
   queuesOpen: null,
   settingsOpen: null,

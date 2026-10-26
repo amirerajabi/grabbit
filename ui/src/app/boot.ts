@@ -46,6 +46,9 @@ function onEvent(e: EngineEvent): void {
       useEngine.getState().setSettings(e.settings);
       syncPreferences();
       return;
+    case 'grab':
+      useUi.getState().set({ grabProgress: { id: e.id, pages: e.pages, files: e.files } });
+      break;
     case 'tools':
       useEngine.getState().setTools(e.tools);
       break;

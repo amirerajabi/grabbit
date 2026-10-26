@@ -2166,3 +2166,11 @@ body.resizing-row .splitter-horizontal {
 .extract-pw .input-with-btn {
   max-width: 260px;
 }
+
+/* ---------- site grabber ---------- */
+.grab-status {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+}

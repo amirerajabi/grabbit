@@ -1,5 +1,6 @@
-import { FileStack, LoaderCircle } from 'lucide-react';
+import { FileStack, LoaderCircle, Search } from 'lucide-react';
 import { useMemo, useState } from 'react';
+import type { GrabResult } from '../../../../shared/protocol';
 import { api } from '../../api/client';
 import { attempt } from '../../app/commands';
 import { pluralize } from '../../lib/format';
@@ -7,7 +8,14 @@ import { useEngine } from '../../store/engine';
 import { useUi } from '../../store/ui';
 import { Dialog, Field } from '../common/Dialog';
 
-type Mode = 'list' | 'pattern';
+type Mode = 'list' | 'pattern' | 'site';
+
+const DEPTHS = [
+  [0, 'This page only'],
+  [1, 'Pages it links to'],
+  [2, 'Two levels deep'],
+  [3, 'Three levels deep'],
+] as const;
 
 /**
  * IDM's batch download: either a pasted list of addresses, or one address with a `*` wildcard expanded over a number
@@ -70,19 +78,43 @@ function BatchForm() {
   const [width, setWidth] = useState(1);
   const [queueId, setQueueId] = useState('main');
   const [busy, setBusy] = useState(false);
+  // Site grabber
+  const [siteUrl, setSiteUrl] = useState('');
+  const [depth, setDepth] = useState(1);
+  const [sameSite, setSameSite] = useState(true);
+  const [types, setTypes] = useState(() => captureExtensions.join(' '));
+  const [grabId, setGrabId] = useState<string | null>(null);
+  const [grabbed, setGrabbed] = useState<GrabResult | null>(null);
+  const progress = useUi((s) => (grabId && s.grabProgress?.id === grabId ? s.grabProgress : null));
+  const validSite = /^https?:\/\/\S+$/i.test(siteUrl.trim());
 
   const urls = useMemo(() => {
     if (mode === 'pattern') return expandPattern(pattern.trim(), from.trim(), to.trim(), width);
+    if (mode === 'site') return grabbed?.files ?? [];
     const found = [...new Set(text.match(/(?:https?|s?ftp):\/\/[^\s"'<>]+/gi) ?? [])];
     // A page's links are mostly navigation: keep the ones that point at a file type Grabbit captures.
     return filesOnly ? found.filter((u) => captureExtensions.includes(extensionOf(u))) : found;
-  }, [mode, text, pattern, from, to, width, filesOnly, captureExtensions]);
+  }, [mode, text, pattern, from, to, width, filesOnly, captureExtensions, grabbed]);
 
-  const close = () => useUi.getState().set({ batchOpen: false, batchPrefill: null });
+  const grab = async () => {
+    const id = Math.random().toString(36).slice(2);
+    setGrabId(id);
+    setGrabbed(null);
+    const extensions = types.split(/[\s,;]+/).map((t) => t.replace(/^\./, '').toLowerCase()).filter(Boolean);
+    const r = await attempt(() => api.grab({ id, url: siteUrl.trim(), depth, sameSite, extensions }), 'Could not read the site');
+    setGrabId(null);
+    if (r) setGrabbed(r);
+  };
+
+  const close = () => {
+    if (grabId) void api.stopGrab(grabId).catch(() => undefined);
+    useUi.getState().set({ batchOpen: false, batchPrefill: null, grabProgress: null });
+  };
   const submit = async (start: 'now' | 'queue') => {
     if (urls.length === 0) return;
     setBusy(true);
-    const r = await attempt(() => api.addBatch(urls, { start, queueId, referer: prefill?.referer, headers: prefill?.headers }), 'Could not add the downloads');
+    const referer = mode === 'site' ? siteUrl.trim() : prefill?.referer;
+    const r = await attempt(() => api.addBatch(urls, { start, queueId, referer, headers: mode === 'site' ? undefined : prefill?.headers }), 'Could not add the downloads');
     setBusy(false);
     if (r) {
       useUi.getState().toast({ level: 'success', text: `${pluralize(r.length, 'download')} added`, detail: start === 'now' ? 'The queue has started.' : 'They wait in the queue.' });
@@ -119,8 +151,68 @@ function BatchForm() {
           <button role="tab" aria-selected={mode === 'pattern'} className={mode === 'pattern' ? 'on' : ''} onClick={() => setMode('pattern')}>
             Address pattern
           </button>
+          <button role="tab" aria-selected={mode === 'site'} className={mode === 'site' ? 'on' : ''} onClick={() => setMode('site')}>
+            Website
+          </button>
         </div>
-        {mode === 'list' ? (
+        {mode === 'site' ? (
+          <>
+            <Field label="Start page" hint="Grabbit reads this page (and the pages it links to, if you choose) and lists the files it finds.">
+              <div className="input-with-btn">
+                <input
+                  className="input mono-sm"
+                  value={siteUrl}
+                  onChange={(e) => setSiteUrl(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && validSite && !grabId && void grab()}
+                  placeholder="https://example.com/downloads/"
+                  spellCheck={false}
+                  autoFocus
+                />
+                {grabId ? (
+                  <button className="btn" onClick={() => void api.stopGrab(grabId).catch(() => undefined)}>
+                    Stop
+                  </button>
+                ) : (
+                  <button className="btn" disabled={!validSite} onClick={() => void grab()}>
+                    <Search size={16} /> Find files
+                  </button>
+                )}
+              </div>
+            </Field>
+            <div className="form-row">
+              <Field label="Follow links">
+                <select className="input select" value={depth} onChange={(e) => setDepth(Number(e.target.value))}>
+                  {DEPTHS.map(([d, label]) => (
+                    <option key={d} value={d}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+              <Field label="File types" hint="Extensions, separated by spaces.">
+                <input className="input mono-sm" value={types} onChange={(e) => setTypes(e.target.value)} spellCheck={false} />
+              </Field>
+            </div>
+            <label className="check">
+              <input type="checkbox" checked={sameSite} onChange={(e) => setSameSite(e.target.checked)} disabled={depth === 0} />
+              Stay on this site (files linked from other sites are still listed)
+            </label>
+            {(grabId || grabbed) && (
+              <div className="grab-status muted" role="status">
+                {grabId ? (
+                  <>
+                    <LoaderCircle size={14} className="spin" /> Reading pages… {progress ? `${pluralize(progress.pages, 'page')}, ${pluralize(progress.files, 'file')} so far` : ''}
+                  </>
+                ) : grabbed ? (
+                  <>
+                    {pluralize(grabbed.files.length, 'file')} on {pluralize(grabbed.pages, 'page')}
+                    {grabbed.stopped ? ' (stopped)' : grabbed.truncated ? ` (stopped at the ${grabbed.pages}-page limit)` : ''}.
+                  </>
+                ) : null}
+              </div>
+            )}
+          </>
+        ) : mode === 'list' ? (
           <>
             <Field label="Addresses" hint={prefill ? `${prefill.urls.length} links from ${hostOf(prefill.referer) ?? 'your browser'}. Edit the list or filter it below.` : 'Paste links, one per line, or any text that contains them.'}>
               <textarea className="input textarea mono-sm" rows={9} value={text} onChange={(e) => setText(e.target.value)} placeholder={'https://example.com/part1.zip\nhttps://example.com/part2.zip'} spellCheck={false} autoFocus />
