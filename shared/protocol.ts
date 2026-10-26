@@ -158,6 +158,12 @@ export interface Settings {
   extractArchives: boolean;
   /** Move the archive to the trash/delete it after a successful extraction. */
   deleteArchiveAfterExtract: boolean;
+  /** none = connect directly, system = the OS proxy settings, manual = proxyUrl. */
+  proxyMode: 'none' | 'system' | 'manual';
+  /** http://host:port, socks5://user:pass@host:1080 … */
+  proxyUrl: string;
+  /** Hosts that skip the proxy: names, ".example.com" suffixes, "<local>". */
+  proxyBypass: string[];
 }
 
 /**

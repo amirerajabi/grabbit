@@ -118,6 +118,7 @@ function Section({ id, s }: { id: SettingsSection; s: SettingsT }) {
           <NumberField label="Retry delay (seconds)" value={s.retryDelaySec} min={1} max={600} onSave={(n) => save({ retryDelaySec: n })} />
           <NumberField label="Timeout (seconds)" hint="A connection that sends nothing for this long is reopened." value={s.timeoutSec} min={5} max={600} onSave={(n) => save({ timeoutSec: n })} />
           <TextField label="User agent" hint="Sent with every request. Some servers only answer browsers." value={s.userAgent} onSave={(v) => save({ userAgent: v })} mono />
+          <ProxyFields s={s} />
         </div>
       );
     case 'saveto':
@@ -232,6 +233,76 @@ function UpdatesSection({ s }: { s: SettingsT }) {
       )}
     </div>
   );
+}
+
+const PROXY_MODES = [
+  ['none', 'No proxy'],
+  ['system', 'System proxy'],
+  ['manual', 'Manual'],
+] as const;
+
+/** Proxy: off, the OS's settings, or a proxy URL. "Manual" is only saved once a valid URL is entered. */
+function ProxyFields({ s }: { s: SettingsT }) {
+  const [mode, setMode] = useState(s.proxyMode);
+  const [url, setUrl] = useState(s.proxyUrl);
+  const [bypass, setBypass] = useState(s.proxyBypass.join(', '));
+  const valid = isProxyUrl(url);
+  const pick = (m: SettingsT['proxyMode']) => {
+    setMode(m);
+    if (m !== 'manual' || valid) save(m === 'manual' ? { proxyMode: m, proxyUrl: url.trim() } : { proxyMode: m });
+  };
+  const commitUrl = () => {
+    if (valid && (url.trim() !== s.proxyUrl || s.proxyMode !== 'manual')) save({ proxyMode: 'manual', proxyUrl: url.trim() });
+  };
+  return (
+    <>
+      <h3 className="settings-subhead">Proxy</h3>
+      <Field label="Connect through" hint={mode === 'system' ? 'Uses the proxy set in your operating system. Automatic setup scripts (PAC files) are not supported.' : undefined}>
+        <div className="segmented">
+          {PROXY_MODES.map(([m, label]) => (
+            <button key={m} className={mode === m ? 'on' : ''} aria-pressed={mode === m} onClick={() => pick(m)}>
+              {label}
+            </button>
+          ))}
+        </div>
+      </Field>
+      {mode === 'manual' && (
+        <Field label="Proxy address" hint={url.trim() && !valid ? 'Use http://host:port or socks5://host:port' : 'HTTP or SOCKS5. Add user:password@ before the host if the proxy needs a login.'}>
+          <input
+            className={`input mono-sm${url.trim() && !valid ? ' invalid' : ''}`}
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
+            onBlur={commitUrl}
+            onKeyDown={(e) => e.key === 'Enter' && commitUrl()}
+            placeholder="socks5://127.0.0.1:1080"
+            spellCheck={false}
+          />
+        </Field>
+      )}
+      {mode !== 'none' && (
+        <Field label="Don't use the proxy for" hint="Comma-separated host names; .example.com covers its subdomains; <local> covers names without a dot.">
+          <input
+            className="input mono-sm"
+            value={bypass}
+            onChange={(e) => setBypass(e.target.value)}
+            onBlur={() => save({ proxyBypass: bypass.split(',').map((x) => x.trim()).filter(Boolean) })}
+            spellCheck={false}
+          />
+        </Field>
+      )}
+    </>
+  );
+}
+
+function isProxyUrl(text: string): boolean {
+  const t = text.trim();
+  if (!t) return false;
+  try {
+    const u = new URL(/^[a-z][a-z0-9+.-]*:\/\//i.test(t) ? t : `http://${t}`);
+    return ['http:', 'https:', 'socks:', 'socks5:', 'socks5h:'].includes(u.protocol) && !!u.hostname;
+  } catch {
+    return false;
+  }
 }
 
 function AfterSection({ s }: { s: SettingsT }) {

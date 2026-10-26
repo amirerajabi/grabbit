@@ -36,6 +36,10 @@ export function defaultSettings(): Settings {
     scanCommand: '',
     extractArchives: false,
     deleteArchiveAfterExtract: false,
+    proxyMode: 'none',
+    proxyUrl: '',
+    // Local addresses skip the proxy unless the user removes them from the list.
+    proxyBypass: ['localhost', '127.0.0.1', '::1', '<local>'],
   };
 }
 
@@ -67,5 +71,8 @@ export function mergeSettings(base: Settings, patch: Partial<Settings>): Setting
   if (typeof p.scanCommand === 'string') s.scanCommand = p.scanCommand.trim();
   if (typeof p.extractArchives === 'boolean') s.extractArchives = p.extractArchives;
   if (typeof p.deleteArchiveAfterExtract === 'boolean') s.deleteArchiveAfterExtract = p.deleteArchiveAfterExtract;
+  if (p.proxyMode === 'none' || p.proxyMode === 'system' || p.proxyMode === 'manual') s.proxyMode = p.proxyMode;
+  if (typeof p.proxyUrl === 'string') s.proxyUrl = p.proxyUrl.trim();
+  if (Array.isArray(p.proxyBypass)) s.proxyBypass = p.proxyBypass.filter((x): x is string => typeof x === 'string').map((x) => x.trim()).filter(Boolean);
   return s;
 }

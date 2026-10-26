@@ -18,6 +18,7 @@ import { categoryFolder, categoryFor, extensionOf, isCategoryId } from './catego
 import { DownloadTask, probeUrl, requestHeaders, type TaskHost } from './DownloadTask';
 import { RateLimiter, SpeedMeter } from './limiter';
 import { hashFile, isHashAlgo, parseChecksum, runPowerAction, scanFile } from './post';
+import { parseProxyUrl, setProxySettings } from './proxy';
 import { openPath } from './shell';
 import { defaultSettings, mergeSettings } from './settings';
 import { atomicWrite, clamp, isHttpUrl, newId, readJson, sanitizeFileName, TEMP_EXT, uniquePath } from './util';
@@ -574,6 +575,10 @@ export class DownloadManager extends EventEmitter implements TaskHost {
   }
 
   updateSettings(patch: Partial<Settings>): Settings {
+    if (patch.proxyMode === 'manual' || (patch.proxyUrl !== undefined && (patch.proxyMode ?? this.settingsValue.proxyMode) === 'manual')) {
+      const url = patch.proxyUrl ?? this.settingsValue.proxyUrl;
+      if (!parseProxyUrl(url)) throw new Error('Enter a proxy like http://host:8080 or socks5://host:1080');
+    }
     this.settingsValue = mergeSettings(this.settingsValue, patch);
     this.applyLimits();
     // One write at a time, in order, so the file always ends with the latest settings; a failed write is logged, never
@@ -589,6 +594,7 @@ export class DownloadManager extends EventEmitter implements TaskHost {
   private applyLimits(): void {
     const s = this.settingsValue;
     this.globalLimiter.setRate(s.speedLimitEnabled ? s.speedLimit : 0);
+    setProxySettings({ mode: s.proxyMode, url: s.proxyUrl, bypass: s.proxyBypass });
   }
 
   /** "Download all links" from the extension: the window lets the user pick; with no window they wait in the main queue. */
