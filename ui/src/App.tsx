@@ -19,6 +19,7 @@ import { SettingsDialog } from './components/Settings/SettingsDialog';
 import { ShortcutSheet } from './components/Shortcuts/ShortcutSheet';
 import { StatusBar } from './components/StatusBar/StatusBar';
 import { Toolbar } from './components/Toolbar/Toolbar';
+import { WhenDoneCountdown } from './components/WhenDone/WhenDone';
 import { useUi } from './store/ui';
 import { useTheme } from './theme/theme';
 
@@ -51,6 +52,7 @@ export default function App() {
       <CommandPalette />
       <ShortcutSheet />
       <ConfirmDialog />
+      <WhenDoneCountdown />
       <Toasts />
     </div>
   );

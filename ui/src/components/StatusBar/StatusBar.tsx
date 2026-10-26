@@ -1,5 +1,6 @@
 import { ArrowDownCircle, ArrowDownToLine, CircleAlert, ClipboardList, Gauge, ListOrdered, LoaderCircle, RefreshCw, Wifi, WifiOff } from 'lucide-react';
 import { updateChip, useUpdates } from '../../store/updates';
+import { WhenDoneButton } from '../WhenDone/WhenDone';
 import { useMemo } from 'react';
 import { runCommand } from '../../app/commands';
 import { formatBytes, formatSpeed, pluralize } from '../../lib/format';
@@ -65,6 +66,7 @@ export function StatusBar() {
           Clipboard {settings.clipboardMonitor ? 'on' : 'off'}
         </button>
       )}
+      <WhenDoneButton />
       <UpdateChip />
       <button
         className={`sb-item sb-button${limiterOn ? ' sb-warn' : ''}`}

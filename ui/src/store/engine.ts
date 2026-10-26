@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { CategoryInfo, EngineState, Queue, Settings } from '../../../shared/protocol';
+import type { CategoryInfo, EngineState, Queue, Settings, WhenDoneAction } from '../../../shared/protocol';
 import { api } from '../api/client';
 
 /** Engine-owned configuration: settings, queues and the category list. */
@@ -8,7 +8,10 @@ interface EngineConfigState {
   queues: Queue[];
   categories: CategoryInfo[];
   version: string;
+  /** A when-done countdown in progress (the action runs at `at`). */
+  whenDone: { action: WhenDoneAction; at: number } | null;
   load(s: EngineState): void;
+  setWhenDone(w: { action: WhenDoneAction; at: number } | null): void;
   setSettings(s: Settings): void;
   setQueues(q: Queue[]): void;
   updateSettings(patch: Partial<Settings>): Promise<void>;
@@ -19,8 +22,12 @@ export const useEngine = create<EngineConfigState>((set) => ({
   queues: [],
   categories: [],
   version: '',
+  whenDone: null,
   load(s) {
-    set({ settings: s.settings, queues: s.queues, categories: s.categories, version: s.version });
+    set({ settings: s.settings, queues: s.queues, categories: s.categories, version: s.version, whenDone: s.whenDone ?? null });
+  },
+  setWhenDone(whenDone) {
+    set({ whenDone });
   },
   setSettings(settings) {
     set({ settings });

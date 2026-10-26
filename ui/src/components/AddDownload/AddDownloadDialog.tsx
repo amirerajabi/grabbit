@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import type { CategoryId, ProbeResult } from '../../../../shared/protocol';
 import { api } from '../../api/client';
 import { attempt } from '../../app/commands';
+import { isChecksum } from '../../lib/checksum';
 import { formatBytes } from '../../lib/format';
 import { categoryDir, fileNameFromUrl, guessCategory } from '../../lib/paths';
 import { getPlatform } from '../../platform';
@@ -41,6 +42,9 @@ function AddForm() {
   const [description, setDescription] = useState('');
   const [advanced, setAdvanced] = useState(false);
   const [connections, setConnections] = useState(settings?.maxConnections ?? 8);
+  const [checksum, setChecksum] = useState('');
+  const [openWhenDone, setOpenWhenDone] = useState(false);
+  const checksumValid = isChecksum(checksum);
   const [busy, setBusy] = useState(false);
 
   const validUrl = /^https?:\/\/\S+$/i.test(url.trim());
@@ -89,6 +93,10 @@ function AddForm() {
 
   const submit = async (start: 'now' | 'queue', queueId?: string) => {
     if (!validUrl || busy) return;
+    if (checksum.trim() && !checksumValid) {
+      setAdvanced(true);
+      return;
+    }
     setBusy(true);
     const added = await attempt(
       () =>
@@ -104,6 +112,8 @@ function AddForm() {
           headers: init.headers,
           description: description.trim() || undefined,
           probe: probe ? { finalUrl: probe.finalUrl, size: probe.size, resumable: probe.resumable, mime: probe.mime } : undefined,
+          checksum: checksum.trim() || undefined,
+          openWhenDone,
         }),
       'Could not add the download',
     );
@@ -257,6 +267,15 @@ function AddForm() {
             </Field>
           </div>
         )}
+        {advanced && (
+          <Field label="Checksum" hint={checksum.trim() && !checksumValid ? 'Paste an MD5, SHA-1, SHA-256 or SHA-512 hash' : 'Optional. Grabbit checks the file against it when it finishes.'}>
+            <input className={`input mono-sm${checksum.trim() && !checksumValid ? ' invalid' : ''}`} value={checksum} onChange={(e) => setChecksum(e.target.value)} placeholder="sha256:9a2f… or the hash from the download page" spellCheck={false} />
+          </Field>
+        )}
+        <label className="check">
+          <input type="checkbox" checked={openWhenDone} onChange={(e) => setOpenWhenDone(e.target.checked)} />
+          Open the file when it finishes
+        </label>
       </div>
     </Dialog>
   );

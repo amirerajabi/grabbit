@@ -3,6 +3,7 @@ import type {
   BulkAction,
   DownloadItem,
   EngineState,
+  HashAlgo,
   ProbeResult,
   Queue,
   QueueSchedule,
@@ -41,8 +42,10 @@ export const api = {
   bulk: (ids: string[], action: BulkAction, arg?: string) => call<{ ok: true }>('POST', '/api/downloads/actions', { ids, action, arg }),
   pauseAll: () => call<{ ok: true }>('POST', '/api/downloads/pause-all'),
   removeCompleted: () => call<{ ok: true }>('POST', '/api/downloads/remove-completed'),
-  update: (id: string, patch: Partial<Pick<DownloadItem, 'url' | 'fileName' | 'connections' | 'speedLimit' | 'description' | 'referer'>>) =>
+  update: (id: string, patch: Partial<Pick<DownloadItem, 'url' | 'fileName' | 'connections' | 'speedLimit' | 'description' | 'referer' | 'openWhenDone' | 'extract'>> & { checksum?: string | null }) =>
     call<DownloadItem>('PATCH', `/api/downloads/${id}`, patch),
+  checksum: (id: string, algo: HashAlgo, expected?: string) => call<DownloadItem>('POST', `/api/downloads/${id}/checksum`, { algo, expected }),
+  cancelWhenDone: () => call<{ ok: true }>('POST', '/api/when-done/cancel'),
   open: (id: string, reveal: boolean) => call<{ ok: true }>('POST', `/api/downloads/${id}/open`, { reveal }),
   openFolder: (dir?: string) => call<{ ok: true }>('POST', '/api/open-folder', { dir }),
   updateSettings: (patch: Partial<Settings>) => call<Settings>('PUT', '/api/settings', patch),

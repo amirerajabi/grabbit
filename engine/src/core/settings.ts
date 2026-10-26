@@ -1,7 +1,9 @@
 import * as os from 'node:os';
 import * as path from 'node:path';
-import type { Settings } from '../../../shared/protocol';
+import type { Settings, WhenDoneAction } from '../../../shared/protocol';
 import { clamp } from './util';
+
+const WHEN_DONE: WhenDoneAction[] = ['nothing', 'quit', 'sleep', 'hibernate', 'shutdown'];
 
 export const DEFAULT_USER_AGENT =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36';
@@ -29,6 +31,11 @@ export function defaultSettings(): Settings {
     theme: 'system',
     minimizeToTray: true,
     autoUpdate: true,
+    whenDone: 'nothing',
+    scanAfterDownload: false,
+    scanCommand: '',
+    extractArchives: false,
+    deleteArchiveAfterExtract: false,
   };
 }
 
@@ -55,5 +62,10 @@ export function mergeSettings(base: Settings, patch: Partial<Settings>): Setting
   if (p.theme === 'system' || p.theme === 'light' || p.theme === 'dark') s.theme = p.theme;
   if (typeof p.minimizeToTray === 'boolean') s.minimizeToTray = p.minimizeToTray;
   if (typeof p.autoUpdate === 'boolean') s.autoUpdate = p.autoUpdate;
+  if (typeof p.whenDone === 'string' && WHEN_DONE.includes(p.whenDone as WhenDoneAction)) s.whenDone = p.whenDone as WhenDoneAction;
+  if (typeof p.scanAfterDownload === 'boolean') s.scanAfterDownload = p.scanAfterDownload;
+  if (typeof p.scanCommand === 'string') s.scanCommand = p.scanCommand.trim();
+  if (typeof p.extractArchives === 'boolean') s.extractArchives = p.extractArchives;
+  if (typeof p.deleteArchiveAfterExtract === 'boolean') s.deleteArchiveAfterExtract = p.deleteArchiveAfterExtract;
   return s;
 }

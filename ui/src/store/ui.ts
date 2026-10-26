@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import type { WsStatus } from '../api/ws';
 
 export type DockPanel = 'categories' | 'queues';
-export type SettingsSection = 'general' | 'connection' | 'saveto' | 'speed' | 'integration' | 'updates' | 'about';
+export type SettingsSection = 'general' | 'connection' | 'saveto' | 'speed' | 'after' | 'integration' | 'updates' | 'about';
 
 export interface AddDialogState {
   url: string;

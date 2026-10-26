@@ -12,10 +12,13 @@ import type {
   Queue,
   QueueSchedule,
   Settings,
+  WhenDoneAction,
 } from '../../../shared/protocol';
 import { categoryFolder, categoryFor, extensionOf, isCategoryId } from './categories';
 import { DownloadTask, probeUrl, requestHeaders, type TaskHost } from './DownloadTask';
 import { RateLimiter, SpeedMeter } from './limiter';
+import { hashFile, isHashAlgo, parseChecksum, runPowerAction, scanFile } from './post';
+import { openPath } from './shell';
 import { defaultSettings, mergeSettings } from './settings';
 import { atomicWrite, clamp, isHttpUrl, newId, readJson, sanitizeFileName, TEMP_EXT, uniquePath } from './util';
 
@@ -45,6 +48,12 @@ export class DownloadManager extends EventEmitter implements TaskHost {
   private saveTimer: NodeJS.Timeout | null = null;
   private progressTimer: NodeJS.Timeout | null = null;
   private scheduleTimer: NodeJS.Timeout | null = null;
+  /** Downloads whose post-processing (verify, scan, extract) is still running. */
+  private posting = new Set<string>();
+  /** The pending when-done action: timer and the time it fires. */
+  private whenDoneTimer: { timer: NodeJS.Timeout; at: number } | null = null;
+  /** Archive extraction, plugged in by the engine (it needs the tools manager); null = not available. */
+  extractStep: ((item: DownloadItem) => Promise<void>) | null = null;
   /** "queueId@yyyy-mm-dd HH:mm:start|stop" of the last schedule action, so a minute fires once. */
   private fired = new Set<string>();
 
@@ -70,6 +79,12 @@ export class DownloadManager extends EventEmitter implements TaskHost {
       for (const s of d.segments) s.active = false;
       d.speed = 0;
       d.eta = null;
+      // Fields added after 1.0.2: older lists don't have them.
+      d.checksum ??= null;
+      d.post ??= emptyPost();
+      if (d.post.step) d.post.step = null;
+      d.openWhenDone ??= false;
+      d.extract ??= null;
       this.items.set(d.id, d);
     }
     // unref: the HTTP server is what keeps the engine alive, not these timers.
@@ -80,6 +95,7 @@ export class DownloadManager extends EventEmitter implements TaskHost {
   async shutdown(): Promise<void> {
     if (this.progressTimer) clearInterval(this.progressTimer);
     if (this.scheduleTimer) clearInterval(this.scheduleTimer);
+    if (this.whenDoneTimer) clearTimeout(this.whenDoneTimer.timer);
     await Promise.all([...this.tasks.values()].map((t) => t.stop()));
     await this.saveNow();
     await this.settingsWrite;
@@ -138,11 +154,164 @@ export class DownloadManager extends EventEmitter implements TaskHost {
     item.eta = null;
     this.changed(item);
     if (item.status === 'completed') {
-      this.emitEvent({ type: 'notify', level: 'success', text: 'Download complete', detail: item.fileName, downloadId: item.id });
+      this.posting.add(item.id);
+      void this.postProcess(item).finally(() => {
+        this.posting.delete(item.id);
+        this.checkWhenDone();
+      });
     } else if (item.status === 'error') {
       this.emitEvent({ type: 'notify', level: 'error', text: `Download failed: ${item.fileName}`, detail: item.error ?? undefined, downloadId: item.id });
     }
     this.pump();
+    this.checkWhenDone();
+  }
+
+  // ------------------------------------------------------------------ after the download
+
+  /**
+   * Verify, scan, extract, then announce (and open) the file. A failed step is recorded on the item and stops the
+   * steps after it that would use a bad file; it never throws.
+   */
+  private async postProcess(item: DownloadItem): Promise<void> {
+    const file = path.join(item.dir, item.fileName);
+    const post = (patch: Partial<DownloadItem['post']>) => {
+      item.post = { ...item.post, ...patch };
+      this.changed(item);
+    };
+    let ok = true;
+    try {
+      if (item.checksum?.expected) {
+        post({ step: 'verifying' });
+        ok = await this.verify(item, file);
+      }
+      if (ok && this.settingsValue.scanAfterDownload) {
+        post({ step: 'scanning' });
+        const r = await scanFile(file, this.settingsValue.scanCommand);
+        post({ scan: r.result, message: r.message });
+        if (r.result === 'threat') {
+          ok = false;
+          this.emitEvent({ type: 'notify', level: 'error', text: `Threat found in ${item.fileName}`, detail: r.message ?? undefined, downloadId: item.id });
+        }
+      }
+      if (ok && this.extractStep && (item.extract ?? this.settingsValue.extractArchives)) {
+        await this.extractStep(item);
+      }
+    } catch (e) {
+      post({ message: e instanceof Error ? e.message : String(e) });
+    } finally {
+      post({ step: null });
+    }
+    if (!ok) return;
+    this.emitEvent({ type: 'notify', level: 'success', text: 'Download complete', detail: item.fileName, downloadId: item.id });
+    if (item.openWhenDone) {
+      try {
+        openPath(item.post.extractedTo ?? file, false);
+      } catch {
+        /* the file was moved or deleted meanwhile */
+      }
+    }
+  }
+
+  /** Checks the finished file against the expected hash; true when it matches. */
+  private async verify(item: DownloadItem, file: string): Promise<boolean> {
+    const c = item.checksum!;
+    c.state = 'computing';
+    this.changed(item);
+    try {
+      c.actual = await hashFile(file, c.algo);
+      c.state = c.actual === c.expected ? 'ok' : 'mismatch';
+    } catch (e) {
+      c.state = 'failed';
+      item.post.message = e instanceof Error ? e.message : String(e);
+    }
+    this.changed(item);
+    if (c.state === 'mismatch') {
+      this.emitEvent({ type: 'notify', level: 'error', text: `Checksum mismatch: ${item.fileName}`, detail: 'The file is damaged or not the one expected. Redownload it.', downloadId: item.id });
+    }
+    return c.state === 'ok';
+  }
+
+  /** Compute (and, with an expected value, check) a finished file's hash on request. */
+  async computeChecksum(id: string, algo: unknown, expected?: string): Promise<DownloadItem> {
+    const item = this.items.get(id);
+    if (!item) throw new Error('No such download');
+    if (item.status !== 'completed') throw new Error('The download is not finished yet');
+    const parsed = expected ? parseChecksum(expected) : null;
+    if (expected && !parsed) throw new Error('That is not an MD5, SHA-1, SHA-256 or SHA-512 hash');
+    const a = parsed?.algo ?? (isHashAlgo(algo) ? algo : 'sha256');
+    item.checksum = { algo: a, expected: parsed?.expected ?? null, actual: null, state: 'computing' };
+    this.changed(item);
+    const file = path.join(item.dir, item.fileName);
+    if (item.checksum.expected) {
+      await this.verify(item, file);
+      return item;
+    }
+    try {
+      item.checksum.actual = await hashFile(file, a);
+      item.checksum.state = 'computed';
+    } catch (e) {
+      item.checksum.state = 'failed';
+      throw e;
+    } finally {
+      this.changed(item);
+    }
+    return item;
+  }
+
+  // ------------------------------------------------------------------ when everything is done
+
+  /** Nothing running, queued to run, or still being post-processed. */
+  private allDone(): boolean {
+    if (this.tasks.size > 0 || this.posting.size > 0) return false;
+    return !this.queues.some((q) => q.running && [...this.items.values()].some((d) => d.queueId === q.id && d.status === 'queued'));
+  }
+
+  /** Start the countdown for the when-done action once everything has finished; a new download cancels it. */
+  private checkWhenDone(): void {
+    const action = this.settingsValue.whenDone;
+    if (action === 'nothing') return;
+    if (!this.allDone()) {
+      if (this.whenDoneTimer) this.cancelWhenDone(false);
+      return;
+    }
+    if (this.whenDoneTimer) return;
+    const delay = Number(process.env.GRABBIT_WHEN_DONE_DELAY_MS) || 60_000;
+    const at = Date.now() + delay;
+    this.whenDoneTimer = { at, timer: setTimeout(() => void this.fireWhenDone(action), delay) };
+    this.emitEvent({ type: 'whenDone', action, at });
+  }
+
+  /** Cancel a pending countdown; `reset` also turns the action off (the user's Cancel). */
+  cancelWhenDone(reset = true): void {
+    if (this.whenDoneTimer) {
+      clearTimeout(this.whenDoneTimer.timer);
+      this.whenDoneTimer = null;
+      this.emitEvent({ type: 'whenDone', action: this.settingsValue.whenDone, at: null });
+    }
+    if (reset && this.settingsValue.whenDone !== 'nothing') this.updateSettings({ whenDone: 'nothing' });
+  }
+
+  /** The pending countdown, for a window that connects while it runs. */
+  whenDoneState(): { action: WhenDoneAction; at: number } | null {
+    return this.whenDoneTimer ? { action: this.settingsValue.whenDone, at: this.whenDoneTimer.at } : null;
+  }
+
+  private async fireWhenDone(action: WhenDoneAction): Promise<void> {
+    this.whenDoneTimer = null;
+    if (!this.allDone() || this.settingsValue.whenDone !== action) return;
+    // One-shot, like IDM: the next batch of downloads doesn't turn the computer off again.
+    this.updateSettings({ whenDone: 'nothing' });
+    await this.saveNow();
+    if (action === 'quit') {
+      this.emitEvent({ type: 'quit' });
+      return;
+    }
+    try {
+      const done = await runPowerAction(action);
+      this.emitEvent({ type: 'notify', level: 'info', text: `When done: ${action}`, detail: done });
+    } catch (e) {
+      this.emitEvent({ type: 'notify', level: 'error', text: `Could not ${action === 'shutdown' ? 'shut down' : action}`, detail: e instanceof Error ? e.message : String(e) });
+    }
   }
 
   claimedPaths(except: string): Set<string> {
@@ -220,7 +389,15 @@ export class DownloadManager extends EventEmitter implements TaskHost {
       completedAt: null,
       activeMs: 0,
       retries: 0,
+      checksum: null,
+      post: emptyPost(),
+      openWhenDone: req.openWhenDone === true,
+      extract: typeof req.extract === 'boolean' ? req.extract : null,
     };
+    if (req.checksum?.trim()) {
+      item.checksum = parseChecksum(req.checksum);
+      if (!item.checksum) throw new Error('That is not an MD5, SHA-1, SHA-256 or SHA-512 hash');
+    }
     this.items.set(item.id, item);
     this.markDirty();
     this.emitEvent({ type: 'download.added', item: snapshot(item) });
@@ -250,6 +427,7 @@ export class DownloadManager extends EventEmitter implements TaskHost {
     if (this.tasks.has(item.id) || item.status === 'completed') return;
     const task = new DownloadTask(item, this);
     this.tasks.set(item.id, task);
+    if (this.whenDoneTimer) this.cancelWhenDone(false);
     const meter = new SpeedMeter();
     meter.reset(item.received);
     this.meters.set(item.id, meter);
@@ -315,7 +493,8 @@ export class DownloadManager extends EventEmitter implements TaskHost {
   private async redownload(item: DownloadItem): Promise<void> {
     await this.pause(item);
     await fs.promises.rm(path.join(item.dir, item.fileName) + TEMP_EXT, { force: true });
-    Object.assign(item, { segments: [], received: 0, finalUrl: null, size: null, status: 'stopped', error: null, completedAt: null, activeMs: 0, retries: 0 });
+    Object.assign(item, { segments: [], received: 0, finalUrl: null, size: null, status: 'stopped', error: null, completedAt: null, activeMs: 0, retries: 0, post: emptyPost() });
+    if (item.checksum) item.checksum = { ...item.checksum, actual: null, state: 'pending' };
     if (this.settingsValue.duplicateAction === 'rename') item.fileName = path.basename(uniquePath(item.dir, item.fileName, this.claimedPaths(item.id)));
     this.changed(item);
     this.startOne(item);
@@ -336,7 +515,10 @@ export class DownloadManager extends EventEmitter implements TaskHost {
     this.pump();
   }
 
-  async update(id: string, patch: Partial<Pick<DownloadItem, 'url' | 'fileName' | 'connections' | 'speedLimit' | 'description' | 'referer'>>): Promise<DownloadItem> {
+  async update(
+    id: string,
+    patch: Partial<Pick<DownloadItem, 'url' | 'fileName' | 'connections' | 'speedLimit' | 'description' | 'referer' | 'openWhenDone' | 'extract'>> & { checksum?: string | null },
+  ): Promise<DownloadItem> {
     const item = this.items.get(id);
     if (!item) throw new Error('No such download');
     if (patch.url !== undefined) {
@@ -363,6 +545,19 @@ export class DownloadManager extends EventEmitter implements TaskHost {
     }
     if (typeof patch.description === 'string') item.description = patch.description;
     if (patch.referer !== undefined) item.referer = patch.referer?.trim() || null;
+    if (typeof patch.openWhenDone === 'boolean') item.openWhenDone = patch.openWhenDone;
+    if (patch.extract === null || typeof patch.extract === 'boolean') item.extract = patch.extract;
+    if (patch.checksum !== undefined) {
+      if (!patch.checksum?.trim()) {
+        item.checksum = null;
+      } else {
+        const c = parseChecksum(patch.checksum);
+        if (!c) throw new Error('That is not an MD5, SHA-1, SHA-256 or SHA-512 hash');
+        item.checksum = c;
+        // Already finished: check it now.
+        if (item.status === 'completed') void this.verify(item, path.join(item.dir, item.fileName));
+      }
+    }
     this.changed(item);
     return item;
   }
@@ -547,6 +742,10 @@ export class DownloadManager extends EventEmitter implements TaskHost {
     this.markDirty();
     this.emitEvent({ type: 'progress', entries, totalSpeed });
   }
+}
+
+export function emptyPost(): DownloadItem['post'] {
+  return { step: null, scan: null, extract: null, extractedTo: null, message: null };
 }
 
 function emptySchedule(): QueueSchedule {

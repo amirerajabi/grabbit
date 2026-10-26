@@ -46,6 +46,12 @@ function onEvent(e: EngineEvent): void {
       useEngine.getState().setSettings(e.settings);
       syncPreferences();
       return;
+    case 'whenDone':
+      useEngine.getState().setWhenDone(e.at === null ? null : { action: e.action, at: e.at });
+      return;
+    case 'quit':
+      getPlatform().quit();
+      return;
     case 'queues':
       useEngine.getState().setQueues(e.queues);
       return;

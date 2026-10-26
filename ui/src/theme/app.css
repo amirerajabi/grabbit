@@ -2049,3 +2049,20 @@ body.resizing-row .splitter-horizontal {
   gap: 6px;
   margin-top: 8px;
 }
+
+/* ---------- after download: hashes, when-done countdown ---------- */
+.hash-value {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.hash-calc {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.countdown {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-lg);
+}

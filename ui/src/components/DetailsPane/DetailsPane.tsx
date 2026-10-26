@@ -1,8 +1,9 @@
 import { Copy, FolderOpen, Info, Pause, Play, RotateCcw, Settings2, SquareArrowOutUpRight, X } from 'lucide-react';
 import { useEffect, useState, type ReactNode } from 'react';
-import type { DownloadItem, Segment } from '../../../../shared/protocol';
+import type { DownloadItem, HashAlgo, Segment } from '../../../../shared/protocol';
 import { api } from '../../api/client';
 import { attempt } from '../../app/commands';
+import { ALGO_LABEL } from '../../lib/checksum';
 import { formatBytes, formatDate, formatEta, formatSpeed, percent } from '../../lib/format';
 import { ACTIVE, useDownloads } from '../../store/downloads';
 import { useEngine } from '../../store/engine';
@@ -129,10 +130,94 @@ function ItemDetails({ item: d }: { item: DownloadItem }) {
           <Kv k="Added" v={formatDate(d.addedAt)} />
           {d.retries > 0 && <Kv k="Retries" v={String(d.retries)} />}
           {d.description && <Kv k="Description" v={d.description} />}
+          <AfterDownload item={d} />
         </dl>
         <ConnectionsTable segments={d.segments} running={running} />
       </div>
     </div>
+  );
+}
+
+const STEP_LABEL = { verifying: 'Checking the checksum…', scanning: 'Scanning for viruses…', extracting: 'Extracting…' } as const;
+
+/** Checksum, virus scan and extraction results, plus "Calculate hash" for a finished file. */
+function AfterDownload({ item: d }: { item: DownloadItem }) {
+  const [algo, setAlgo] = useState<HashAlgo>('sha256');
+  const c = d.checksum;
+  const p = d.post;
+  const busy = c?.state === 'computing';
+  return (
+    <>
+      {p.step && <Kv k="Now" v={<span className="text-accent">{STEP_LABEL[p.step]}</span>} />}
+      {c && (
+        <Kv
+          k={`${ALGO_LABEL[c.algo]}`}
+          v={
+            <span className="hash-value">
+              {c.state === 'ok' && <span className="text-success">Matches</span>}
+              {c.state === 'mismatch' && <span className="text-danger">Does not match: the file is damaged or different</span>}
+              {c.state === 'pending' && <span className="muted">Checked when the download finishes</span>}
+              {c.state === 'computing' && <span className="muted">Calculating…</span>}
+              {c.state === 'failed' && <span className="text-danger">Could not read the file</span>}
+              {c.actual && <HashText hash={c.actual} />}
+            </span>
+          }
+        />
+      )}
+      {d.status === 'completed' && !busy && (
+        <Kv
+          k="Checksum"
+          v={
+            <span className="hash-calc">
+              <select className="input select xs" value={algo} onChange={(e) => setAlgo(e.target.value as HashAlgo)} aria-label="Hash algorithm">
+                {(Object.keys(ALGO_LABEL) as HashAlgo[]).map((a) => (
+                  <option key={a} value={a}>
+                    {ALGO_LABEL[a]}
+                  </option>
+                ))}
+              </select>
+              <button className="btn btn-xs" onClick={() => attempt(() => api.checksum(d.id, algo), 'Could not calculate the hash')}>
+                Calculate
+              </button>
+            </span>
+          }
+        />
+      )}
+      {p.scan && (
+        <Kv
+          k="Virus scan"
+          v={p.scan === 'clean' ? <span className="text-success">No threats found</span> : p.scan === 'threat' ? <span className="text-danger">Threat found: {p.message}</span> : <span className="text-warning">Not scanned: {p.message}</span>}
+        />
+      )}
+      {p.extract && (
+        <Kv
+          k="Extracted"
+          v={
+            p.extract === 'done' ? (
+              <span className="selectable mono-sm">{p.extractedTo}</span>
+            ) : p.extract === 'password' ? (
+              <span className="text-warning">Needs a password. Add it in Options → After download.</span>
+            ) : (
+              <span className="text-danger">{p.message ?? 'Extraction failed'}</span>
+            )
+          }
+        />
+      )}
+      {!p.scan && !p.extract && p.message && <Kv k="Note" v={<span className="text-warning">{p.message}</span>} />}
+    </>
+  );
+}
+
+function HashText({ hash }: { hash: string }) {
+  return (
+    <span className="url-value">
+      <span className="selectable mono-sm url-text" title={hash}>
+        {hash}
+      </span>
+      <button className="icon-btn xs" title="Copy" aria-label="Copy hash" onClick={() => void navigator.clipboard.writeText(hash)}>
+        <Copy size={12} />
+      </button>
+    </span>
   );
 }
 

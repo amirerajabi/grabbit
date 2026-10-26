@@ -196,10 +196,7 @@ const Row = memo(function Row({ item: d, index, selected, onMouseDown }: { item:
         <ProgressBar value={d.status === 'completed' ? 100 : pct} status={d.status} />
         <span className="dl-pct tabular">{d.status === 'completed' ? '100%' : pct !== null ? `${pct.toFixed(pct < 10 ? 1 : 0)}%` : d.received ? formatBytes(d.received) : ''}</span>
       </div>
-      <div className={`dl-cell dl-status st-${d.status}`} role="gridcell">
-        {d.status === 'error' && <AlertCircle size={14} />}
-        <span>{statusLabel(d.status)}</span>
-      </div>
+      <StatusCell item={d} />
       <div className="dl-cell right tabular" role="gridcell">
         {running ? formatSpeed(d.speed) : ''}
       </div>
@@ -212,6 +209,40 @@ const Row = memo(function Row({ item: d, index, selected, onMouseDown }: { item:
     </div>
   );
 });
+
+const POST_STEP = { verifying: 'Verifying…', scanning: 'Scanning…', extracting: 'Extracting…' } as const;
+
+/** Status, with what happened after the download for finished files (a bad checksum or a threat is an error). */
+function StatusCell({ item: d }: { item: DownloadItem }) {
+  let label = statusLabel(d.status);
+  let tone: string = d.status;
+  let warn = d.status === 'error';
+  if (d.status === 'completed') {
+    if (d.post.step) {
+      label = POST_STEP[d.post.step];
+      tone = 'completing';
+    } else if (d.checksum?.state === 'mismatch') {
+      label = 'Bad checksum';
+      tone = 'error';
+      warn = true;
+    } else if (d.post.scan === 'threat') {
+      label = 'Threat found';
+      tone = 'error';
+      warn = true;
+    } else if (d.post.extract === 'done') {
+      label = 'Extracted';
+    } else if (d.post.extract === 'password' || d.post.extract === 'failed') {
+      label = d.post.extract === 'password' ? 'Needs password' : 'Extract failed';
+      tone = 'queued';
+    }
+  }
+  return (
+    <div className={`dl-cell dl-status st-${tone}`} role="gridcell">
+      {warn && <AlertCircle size={14} />}
+      <span>{label}</span>
+    </div>
+  );
+}
 
 function EmptyList({ filtered }: { filtered: boolean }) {
   if (filtered) {

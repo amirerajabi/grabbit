@@ -196,6 +196,7 @@ function installIpc(): void {
     updater?.configure(prefs.autoUpdate);
   });
   ipcMain.on(CH.bringToFront, bringToFront);
+  ipcMain.on(CH.quit, quit);
   ipcMain.handle(CH.updateGet, () => updater?.current ?? null);
   ipcMain.handle(CH.updateCheck, () => updater?.check() ?? null);
   ipcMain.handle(CH.updateInstall, () => {

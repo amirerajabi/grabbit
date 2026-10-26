@@ -59,7 +59,39 @@ export interface DownloadItem {
   /** Time spent transferring, ms (used for the average speed). */
   activeMs: number;
   retries: number;
+  /** Checksum to verify after the download (or computed on request); null = none. */
+  checksum: ChecksumInfo | null;
+  /** What happened after the bytes arrived: verification, virus scan, extraction. */
+  post: PostInfo;
+  /** Open the file with its default app when it finishes. */
+  openWhenDone: boolean;
+  /** Extract this archive when it finishes; null = follow the setting. */
+  extract: boolean | null;
 }
+
+export type HashAlgo = 'md5' | 'sha1' | 'sha256' | 'sha512';
+
+export interface ChecksumInfo {
+  algo: HashAlgo;
+  /** Lower-case hex the file must match; null when the hash is only computed, not checked. */
+  expected: string | null;
+  actual: string | null;
+  state: 'pending' | 'computing' | 'ok' | 'mismatch' | 'computed' | 'failed';
+}
+
+export interface PostInfo {
+  /** The step running now, null when post-processing is finished (or never ran). */
+  step: 'verifying' | 'scanning' | 'extracting' | null;
+  scan: 'clean' | 'threat' | 'failed' | null;
+  extract: 'done' | 'failed' | 'password' | null;
+  /** Folder the archive was extracted to. */
+  extractedTo: string | null;
+  /** Detail for a failed or flagged step (shown in the details pane). */
+  message: string | null;
+}
+
+/** One-shot action when every download has finished (IDM's "turn off the computer when done"). */
+export type WhenDoneAction = 'nothing' | 'quit' | 'sleep' | 'hibernate' | 'shutdown';
 
 /** Live numbers for running downloads, pushed every ~500 ms. */
 export interface ProgressEntry {
@@ -116,6 +148,16 @@ export interface Settings {
   minimizeToTray: boolean;
   /** Check GitHub Releases for a new version at start and every few hours (desktop app). */
   autoUpdate: boolean;
+  /** What to do once every running download has finished; resets to 'nothing' after it fires. */
+  whenDone: WhenDoneAction;
+  /** Scan each finished file with an antivirus. */
+  scanAfterDownload: boolean;
+  /** Scanner command with {file} for the path; '' = Microsoft Defender on Windows. */
+  scanCommand: string;
+  /** Extract ZIP, 7z and RAR archives when they finish. */
+  extractArchives: boolean;
+  /** Move the archive to the trash/delete it after a successful extraction. */
+  deleteArchiveAfterExtract: boolean;
 }
 
 /**
@@ -170,6 +212,10 @@ export interface AddDownloadRequest {
   description?: string;
   /** Probe result from the Add dialog, so the engine does not ask the server twice. */
   probe?: Pick<ProbeResult, 'finalUrl' | 'size' | 'resumable' | 'mime'>;
+  /** Expected checksum: hex (the algorithm follows from its length) or "sha256:<hex>". */
+  checksum?: string;
+  openWhenDone?: boolean;
+  extract?: boolean | null;
 }
 
 export type BulkAction = 'start' | 'pause' | 'remove' | 'delete' | 'redownload' | 'moveToQueue' | 'moveUp' | 'moveDown';
@@ -191,6 +237,8 @@ export interface EngineState {
   settings: Settings;
   categories: CategoryInfo[];
   version: string;
+  /** A when-done countdown in progress. */
+  whenDone: { action: WhenDoneAction; at: number } | null;
 }
 
 export type EngineEvent =
@@ -201,4 +249,8 @@ export type EngineEvent =
   | { type: 'queues'; queues: Queue[] }
   | { type: 'settings'; settings: Settings }
   | { type: 'capture'; request: CaptureRequest }
-  | { type: 'notify'; level: 'info' | 'success' | 'warning' | 'error'; text: string; detail?: string; downloadId?: string };
+  | { type: 'notify'; level: 'info' | 'success' | 'warning' | 'error'; text: string; detail?: string; downloadId?: string }
+  /** The when-done action will run at `at` (ms) unless cancelled; `at` null = cancelled. */
+  | { type: 'whenDone'; action: WhenDoneAction; at: number | null }
+  /** The when-done action was "quit": the desktop app should exit. */
+  | { type: 'quit' };

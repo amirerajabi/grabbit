@@ -40,7 +40,7 @@ export function createServer(manager: DownloadManager, token: string): http.Serv
     routes.push({ method, pattern, keys, handler });
   };
 
-  route('GET', '/api/state', (): EngineState => ({ ...manager.state(), categories: CATEGORIES, version: ENGINE_VERSION }));
+  route('GET', '/api/state', (): EngineState => ({ ...manager.state(), categories: CATEGORIES, version: ENGINE_VERSION, whenDone: manager.whenDoneState() }));
   route('POST', '/api/probe', ({ body }) => manager.probe(String(body?.url ?? ''), body?.headers, body?.referer));
   route('POST', '/api/downloads', ({ body }) => manager.add(body as AddDownloadRequest));
   route('POST', '/api/downloads/batch', ({ body }) => {
@@ -58,6 +58,8 @@ export function createServer(manager: DownloadManager, token: string): http.Serv
   route('POST', '/api/downloads/pause-all', async () => (await manager.pauseAll(), { ok: true }));
   route('POST', '/api/downloads/remove-completed', async () => (await manager.removeCompleted(), { ok: true }));
   route('PATCH', '/api/downloads/:id', ({ params, body }) => manager.update(params.id, body ?? {}));
+  route('POST', '/api/downloads/:id/checksum', ({ params, body }) => manager.computeChecksum(params.id, body?.algo, typeof body?.expected === 'string' ? body.expected : undefined));
+  route('POST', '/api/when-done/cancel', () => (manager.cancelWhenDone(), { ok: true }));
   route('POST', '/api/downloads/:id/open', ({ params, body }) => {
     const d = manager.get(params.id);
     if (!d) throw new HttpFailure(404, 'No such download');

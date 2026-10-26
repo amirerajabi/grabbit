@@ -14,6 +14,7 @@ export const CH = {
   updateInstall: 'grabbit:update-install',
   appVersion: 'grabbit:app-version',
   bringToFront: 'grabbit:bring-to-front',
+  quit: 'grabbit:quit',
 } as const;
 
 /** additionalArguments passed to the renderer: --grabbit-engine=<url> --grabbit-token=<token> --grabbit-titlebar=<kind> */

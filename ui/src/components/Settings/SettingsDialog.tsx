@@ -1,5 +1,4 @@
-import { Download, FolderOpen, Gauge, Globe, Info, LoaderCircle, Network, RefreshCw, Settings, SlidersHorizontal } from 'lucide-react';
-import { useUpdates } from '../../store/updates';
+import { Download, FolderOpen, Gauge, Globe, Info, ListChecks, LoaderCircle, Network, RefreshCw, Settings, SlidersHorizontal } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 import type { Settings as SettingsT } from '../../../../shared/protocol';
 import { attempt } from '../../app/commands';
@@ -7,14 +6,17 @@ import { formatSpeed, parseRate } from '../../lib/format';
 import { getPlatform } from '../../platform';
 import { useEngine } from '../../store/engine';
 import { useUi, type SettingsSection } from '../../store/ui';
+import { useUpdates } from '../../store/updates';
 import { Dialog, Field } from '../common/Dialog';
 import { BrandMark } from '../common/visuals';
+import { WHEN_DONE_LABEL } from '../WhenDone/WhenDone';
 
 const SECTIONS: { id: SettingsSection; label: string; Icon: typeof Settings }[] = [
   { id: 'general', label: 'General', Icon: SlidersHorizontal },
   { id: 'connection', label: 'Connection', Icon: Network },
   { id: 'saveto', label: 'Save to', Icon: FolderOpen },
   { id: 'speed', label: 'Speed limiter', Icon: Gauge },
+  { id: 'after', label: 'After download', Icon: ListChecks },
   { id: 'integration', label: 'Browser & clipboard', Icon: Globe },
   { id: 'updates', label: 'Updates', Icon: RefreshCw },
   { id: 'about', label: 'About', Icon: Info },
@@ -122,6 +124,8 @@ function Section({ id, s }: { id: SettingsSection; s: SettingsT }) {
       return <SaveToSection s={s} />;
     case 'speed':
       return <SpeedSection s={s} />;
+    case 'after':
+      return <AfterSection s={s} />;
     case 'integration':
       return (
         <div className="settings-section">
@@ -226,6 +230,39 @@ function UpdatesSection({ s }: { s: SettingsT }) {
           />
         </>
       )}
+    </div>
+  );
+}
+
+function AfterSection({ s }: { s: SettingsT }) {
+  const electron = getPlatform().kind === 'electron';
+  const windows = getPlatform().os === 'win32';
+  const actions = (['nothing', 'quit', 'sleep', 'hibernate', 'shutdown'] as const).filter((a) => a !== 'quit' || electron);
+  return (
+    <div className="settings-section">
+      <h3>After download</h3>
+      <Field label="When all downloads finish" hint="Runs once after a one-minute warning you can cancel, then goes back to “Do nothing”. Also in the status bar.">
+        <div className="segmented">
+          {actions.map((a) => (
+            <button key={a} className={s.whenDone === a ? 'on' : ''} aria-pressed={s.whenDone === a} onClick={() => save({ whenDone: a })}>
+              {WHEN_DONE_LABEL[a]}
+            </button>
+          ))}
+        </div>
+      </Field>
+      <Toggle
+        label="Scan finished files for viruses"
+        hint={windows ? 'Uses Microsoft Defender unless you set another scanner below.' : 'Set a scanner command below, for example clamscan.'}
+        checked={s.scanAfterDownload}
+        onChange={(v) => save({ scanAfterDownload: v })}
+      />
+      <TextField
+        label="Scanner command"
+        hint={<>Optional. <code>{'{file}'}</code> is replaced by the file's path. Exit code 0 means clean, 1 means a threat was found.</>}
+        value={s.scanCommand}
+        onSave={(v) => save({ scanCommand: v })}
+        mono
+      />
     </div>
   );
 }
