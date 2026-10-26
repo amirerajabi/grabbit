@@ -8,6 +8,7 @@
 //   /auth/<name>?mb=N           same as /files, behind a Basic login (demo / demo)
 //   /page                       an HTML page with file and navigation links (for the extension's "all links")
 import http from 'node:http';
+import { startFtpServer } from './ftp-test-server.mjs';
 
 const PORT = Number(process.env.PORT ?? 7400);
 const PIECE = 16 * 1024;
@@ -75,3 +76,7 @@ http
     pump();
   })
   .listen(PORT, '127.0.0.1', () => console.log(`test server on http://127.0.0.1:${PORT}/files/sample.zip?mb=100`));
+
+// FTP next to it, anonymous, capped at 2 MB/s per connection: ftp://127.0.0.1:7421/pub/sample-100mb.zip
+const FTP_PORT = Number(process.env.FTP_PORT ?? 7421);
+startFtpServer({ port: FTP_PORT, kbps: 2048 }).then(({ port }) => console.log(`ftp server on ftp://127.0.0.1:${port}/pub/sample-100mb.zip`));

@@ -38,7 +38,7 @@ if (!app.requestSingleInstanceLock()) {
 }
 
 function linksIn(argv: string[]): string[] {
-  return argv.filter((a) => /^https?:\/\//i.test(a));
+  return argv.filter((a) => /^(?:https?|s?ftp):\/\//i.test(a));
 }
 
 async function start(): Promise<void> {

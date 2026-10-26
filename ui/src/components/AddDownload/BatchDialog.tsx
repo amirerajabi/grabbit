@@ -73,7 +73,7 @@ function BatchForm() {
 
   const urls = useMemo(() => {
     if (mode === 'pattern') return expandPattern(pattern.trim(), from.trim(), to.trim(), width);
-    const found = [...new Set(text.match(/https?:\/\/[^\s"'<>]+/gi) ?? [])];
+    const found = [...new Set(text.match(/(?:https?|s?ftp):\/\/[^\s"'<>]+/gi) ?? [])];
     // A page's links are mostly navigation: keep the ones that point at a file type Grabbit captures.
     return filesOnly ? found.filter((u) => captureExtensions.includes(extensionOf(u))) : found;
   }, [mode, text, pattern, from, to, width, filesOnly, captureExtensions]);

@@ -151,7 +151,7 @@ function authorization(state: { scheme: 'basic'; realm: string | null } | Digest
 }
 
 /** Credentials typed into the address (https://user:pass@host/…) win over saved ones. */
-function credentialsFor(u: URL): { username: string; password: string } | null {
+export function credentialsFor(u: URL): { username: string; password: string } | null {
   if (u.username) return { username: decodeURIComponent(u.username), password: decodeURIComponent(u.password) };
   return lookupCredentials(u.hostname);
 }

@@ -72,7 +72,7 @@ export function currentQueueId(): string {
 
 export async function openAddDialog(): Promise<void> {
   const text = (await readClipboardText()).trim();
-  const url = /^https?:\/\/\S+$/i.test(text) ? text : '';
+  const url = /^(?:https?|s?ftp):\/\/\S+$/i.test(text) ? text : '';
   useUi.getState().openAdd({ url });
 }
 

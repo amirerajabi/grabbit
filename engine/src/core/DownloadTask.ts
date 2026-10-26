@@ -2,9 +2,10 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import type { DownloadItem, Segment, Settings } from '../../../shared/protocol';
 import { categoryFor } from './categories';
-import { AuthError, HttpError, openRequest, startFromContentRange, totalFromContentRange } from './http';
+import { AuthError, HttpError } from './http';
 import { RateLimiter, sleep } from './limiter';
-import { errorMessage, fileNameFrom, TEMP_EXT, uniquePath } from './util';
+import { NoRangeError, sourceFor, type Source } from './sources';
+import { errorMessage, TEMP_EXT, uniquePath } from './util';
 
 /** A range is only split while both halves stay above this size (IDM-style dynamic segmentation). */
 const MIN_SPLIT = 1024 * 1024;
@@ -24,38 +25,6 @@ export interface TaskHost {
   loginRequired(item: DownloadItem, e: AuthError): void;
 }
 
-export interface ProbeInfo {
-  finalUrl: string;
-  fileName: string;
-  size: number | null;
-  resumable: boolean;
-  mime: string | null;
-}
-
-class NoRangeError extends Error {}
-
-/** Ask the server about `url` with a ranged GET (more reliable than HEAD) and drop the body. */
-export async function probeUrl(url: string, headers: Record<string, string>, timeoutMs: number, signal?: AbortSignal): Promise<ProbeInfo> {
-  const { res, finalUrl } = await openRequest(url, { headers, range: { start: 0 }, timeoutMs, signal });
-  try {
-    const status = res.statusCode ?? 0;
-    const length = res.headers['content-length'] ? Number(res.headers['content-length']) : null;
-    const total = totalFromContentRange(res.headers['content-range']);
-    const resumable = status === 206 && total !== null;
-    const size = resumable ? total : Number.isFinite(length) ? length : null;
-    const mime = (res.headers['content-type'] ?? '').split(';')[0].trim() || null;
-    return { finalUrl, fileName: fileNameFrom(finalUrl, res.headers['content-disposition']), size, resumable, mime };
-  } finally {
-    res.destroy();
-  }
-}
-
-export function requestHeaders(item: Pick<DownloadItem, 'headers' | 'referer'>, settings: Settings): Record<string, string> {
-  const h: Record<string, string> = { 'User-Agent': settings.userAgent, ...item.headers };
-  if (item.referer) h.Referer = item.referer;
-  return h;
-}
-
 /**
  * One run of a download: from Start until it completes, fails or is paused. A paused task is discarded; the next
  * Start creates a new one that continues from the segments saved on the item.
@@ -71,6 +40,11 @@ export class DownloadTask {
 
   constructor(readonly item: DownloadItem, private readonly host: TaskHost) {
     this.limiter.setRate(item.speedLimit);
+  }
+
+  /** Built per use: the URL, headers and settings can change between runs (Properties, Options). */
+  private source(): Source {
+    return sourceFor(this.item, this.settings());
   }
 
   get running(): boolean {
@@ -166,7 +140,7 @@ export class DownloadTask {
 
   private async probe(): Promise<void> {
     const item = this.item;
-    const info = await this.withRetries(() => probeUrl(item.url, requestHeaders(item, this.settings()), this.settings().timeoutSec * 1000, this.signal));
+    const info = await this.withRetries(() => this.source().probe(this.signal));
     const sameFile = item.size !== null && info.size === item.size && info.resumable;
     item.finalUrl = info.finalUrl;
     item.mime = info.mime ?? item.mime;
@@ -303,21 +277,7 @@ export class DownloadTask {
       if (from > seg.end) return;
       const before = seg.received;
       try {
-        const { res } = await openRequest(item.finalUrl ?? item.url, {
-          headers: requestHeaders(item, this.settings()),
-          range: { start: from, end: seg.end },
-          timeoutMs: this.settings().timeoutSec * 1000,
-          signal,
-        });
-        if (res.statusCode !== 206) {
-          res.destroy();
-          throw new NoRangeError('The server ignored the byte range');
-        }
-        const total = totalFromContentRange(res.headers['content-range']);
-        if (startFromContentRange(res.headers['content-range']) !== from || (total !== null && total !== size)) {
-          res.destroy();
-          throw new HttpError(412, 'The file on the server has changed');
-        }
+        const res = await this.source().openRange(from, seg.end, size, signal);
         for await (const chunk of res as AsyncIterable<Buffer>) {
           await this.throttle(chunk.length, signal);
           const left = seg.end - (seg.start + seg.received) + 1; // seg.end may shrink when the range is split
@@ -356,13 +316,8 @@ export class DownloadTask {
       const fh = await this.openFile(0);
       const seg = item.segments[0];
       try {
-        const { res } = await openRequest(item.finalUrl ?? item.url, {
-          headers: requestHeaders(item, this.settings()),
-          timeoutMs: this.settings().timeoutSec * 1000,
-          signal: this.signal,
-        });
-        const length = res.headers['content-length'] ? Number(res.headers['content-length']) : null;
-        if (item.size === null && length !== null && Number.isFinite(length)) {
+        const { stream: res, length } = await this.source().openAll(this.signal);
+        if (item.size === null && length !== null) {
           item.size = length;
           seg.end = length - 1;
           this.host.changed(item);

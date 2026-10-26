@@ -14,10 +14,12 @@
     "test": "tsx --test test/*.test.ts"
   },
   "dependencies": {
+    "ssh2": "^1.17.0",
     "ws": "^8.18.0"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",
+    "@types/ssh2": "^1.15.6",
     "@types/ws": "^8.5.13",
     "esbuild": "^0.24.0",
     "tsx": "^4.19.2",

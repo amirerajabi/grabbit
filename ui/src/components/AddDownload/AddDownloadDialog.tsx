@@ -47,7 +47,7 @@ function AddForm() {
   const checksumValid = isChecksum(checksum);
   const [busy, setBusy] = useState(false);
 
-  const validUrl = /^https?:\/\/\S+$/i.test(url.trim());
+  const validUrl = /^(?:https?|s?ftp):\/\/\S+$/i.test(url.trim());
   const duplicate = useMemo(() => Object.values(items).find((d) => d.url === url.trim()), [items, url]);
 
   // Ask the server about the address shortly after the user stops typing.
@@ -171,7 +171,7 @@ function AddForm() {
 
         <div className={`probe-strip${probeError ? ' error' : ''}`} aria-live="polite">
           {!validUrl ? (
-            <span className="muted">Paste an http:// or https:// link.</span>
+            <span className="muted">Paste an http, https, ftp or sftp link.</span>
           ) : probing ? (
             <span className="muted">
               <LoaderCircle size={14} className="spin" /> Checking the address…

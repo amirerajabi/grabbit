@@ -15,12 +15,14 @@ import type {
   WhenDoneAction,
 } from '../../../shared/protocol';
 import { categoryFolder, categoryFor, extensionOf, isCategoryId } from './categories';
-import { DownloadTask, probeUrl, requestHeaders, type TaskHost } from './DownloadTask';
+import { DownloadTask, type TaskHost } from './DownloadTask';
 import { RateLimiter, SpeedMeter } from './limiter';
 import { hashFile, isHashAlgo, parseChecksum, runPowerAction, scanFile } from './post';
 import { parseProxyUrl, setProxySettings } from './proxy';
 import { SecretStore } from './secrets';
 import { AuthError, setCredentialLookup } from './http';
+import { isSupportedUrl, probeAny } from './sources';
+import { setKnownHostsFile } from './sources/sftp';
 import { openPath } from './shell';
 import { defaultSettings, mergeSettings } from './settings';
 import { atomicWrite, clamp, isHttpUrl, newId, readJson, sanitizeFileName, TEMP_EXT, uniquePath } from './util';
@@ -76,6 +78,7 @@ export class DownloadManager extends EventEmitter implements TaskHost {
     fs.mkdirSync(this.dataDir, { recursive: true });
     this.secrets.load();
     setCredentialLookup((host) => this.secrets.lookup(host));
+    setKnownHostsFile(this.file('known_hosts.json'));
     const saved = readJson<Partial<Settings>>(this.file('settings.json'));
     this.settingsValue = mergeSettings(defaultSettings(), saved ?? {});
     this.applyLimits();
@@ -364,17 +367,16 @@ export class DownloadManager extends EventEmitter implements TaskHost {
   }
 
   async probe(url: string, headers: Record<string, string> = {}, referer?: string): Promise<ProbeResult> {
-    if (!isHttpUrl(url)) throw new Error('Enter an http:// or https:// address');
-    const info = await probeUrl(url, requestHeaders({ headers, referer: referer ?? null }, this.settingsValue), this.settingsValue.timeoutSec * 1000);
-    const category = categoryFor(info.fileName, info.mime);
-    return { url, ...info, category, dir: this.dirFor(category) };
+    if (!isSupportedUrl(url)) throw new Error('Enter an http, https, ftp or sftp address');
+    const info = await probeAny(url, this.settingsValue, { headers, referer });
+    return { url, ...info, dir: this.dirFor(info.category) };
   }
 
   // ------------------------------------------------------------------ commands
 
   add(req: AddDownloadRequest): DownloadItem {
     const url = (req.url ?? '').trim();
-    if (!isHttpUrl(url)) throw new Error('Enter an http:// or https:// address');
+    if (!isSupportedUrl(url)) throw new Error('Enter an http, https, ftp or sftp address');
     let fileName = sanitizeFileName(req.fileName?.trim() || fileNameFromUrl(url));
     const category = isCategoryId(req.category) ? req.category : categoryFor(fileName, req.probe?.mime);
     const dir = req.dir?.trim() || this.dirFor(category);
@@ -428,7 +430,7 @@ export class DownloadManager extends EventEmitter implements TaskHost {
   addBatch(urls: string[], base: Omit<AddDownloadRequest, 'url'>): DownloadItem[] {
     const out: DownloadItem[] = [];
     for (const url of urls) {
-      if (!isHttpUrl(url.trim())) continue;
+      if (!isSupportedUrl(url.trim())) continue;
       out.push(this.add({ ...base, url: url.trim(), fileName: undefined, probe: undefined, start: base.start === 'now' ? 'queue' : base.start }));
     }
     // "Start now" for a batch means: put them in the queue and run it, so they respect its concurrency.
@@ -542,7 +544,7 @@ export class DownloadManager extends EventEmitter implements TaskHost {
     if (!item) throw new Error('No such download');
     if (patch.url !== undefined) {
       const url = patch.url.trim();
-      if (!isHttpUrl(url)) throw new Error('Enter an http:// or https:// address');
+      if (!isSupportedUrl(url)) throw new Error('Enter an http, https, ftp or sftp address');
       if (url !== item.url) {
         // "Refresh download address" (expired link): keep the bytes, ask the new address on the next start.
         item.url = url;

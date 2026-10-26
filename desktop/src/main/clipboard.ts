@@ -6,7 +6,7 @@ const INTERVAL_MS = 800;
 
 export function isDownloadLink(text: string, extensions: string[]): boolean {
   const t = text.trim();
-  if (!/^https?:\/\/\S+$/i.test(t) || t.length > 4096) return false;
+  if (!/^(?:https?|s?ftp):\/\/\S+$/i.test(t) || t.length > 4096) return false;
   try {
     const u = new URL(t);
     const last = u.pathname.split('/').pop() ?? '';
