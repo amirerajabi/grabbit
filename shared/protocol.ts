@@ -224,6 +224,15 @@ export interface AddDownloadRequest {
   extract?: boolean | null;
 }
 
+/** A saved site login, as the UI sees it: never the password. */
+export interface SiteLogin {
+  id: string;
+  /** Host name, or ".example.com" for the domain and its subdomains. */
+  site: string;
+  username: string;
+  addedAt: number;
+}
+
 export type BulkAction = 'start' | 'pause' | 'remove' | 'delete' | 'redownload' | 'moveToQueue' | 'moveUp' | 'moveDown';
 
 export interface CaptureRequest {
@@ -259,4 +268,6 @@ export type EngineEvent =
   /** The when-done action will run at `at` (ms) unless cancelled; `at` null = cancelled. */
   | { type: 'whenDone'; action: WhenDoneAction; at: number | null }
   /** The when-done action was "quit": the desktop app should exit. */
-  | { type: 'quit' };
+  | { type: 'quit' }
+  /** A server asked for a login Grabbit doesn't have (or the saved one was refused). */
+  | { type: 'login.required'; downloadId: string; site: string; realm: string | null; failed: boolean };

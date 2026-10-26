@@ -59,6 +59,12 @@ export function createServer(manager: DownloadManager, token: string): http.Serv
   route('POST', '/api/downloads/remove-completed', async () => (await manager.removeCompleted(), { ok: true }));
   route('PATCH', '/api/downloads/:id', ({ params, body }) => manager.update(params.id, body ?? {}));
   route('POST', '/api/downloads/:id/checksum', ({ params, body }) => manager.computeChecksum(params.id, body?.algo, typeof body?.expected === 'string' ? body.expected : undefined));
+  route('GET', '/api/logins', () => manager.secrets.list());
+  route('POST', '/api/logins', ({ body }) => manager.secrets.add(String(body?.site ?? ''), String(body?.username ?? ''), String(body?.password ?? '')));
+  route('DELETE', '/api/logins/:id', ({ params }) => (manager.secrets.remove(params.id), { ok: true }));
+  route('GET', '/api/archive-passwords', () => ({ count: manager.secrets.archivePasswordCount() }));
+  route('POST', '/api/archive-passwords', ({ body }) => (manager.secrets.addArchivePassword(String(body?.password ?? '')), { count: manager.secrets.archivePasswordCount() }));
+  route('DELETE', '/api/archive-passwords', () => (manager.secrets.clearArchivePasswords(), { count: 0 }));
   route('POST', '/api/when-done/cancel', () => (manager.cancelWhenDone(), { ok: true }));
   route('POST', '/api/downloads/:id/open', ({ params, body }) => {
     const d = manager.get(params.id);

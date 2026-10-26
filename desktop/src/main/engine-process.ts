@@ -3,6 +3,7 @@
 import { utilityProcess, type UtilityProcess } from 'electron';
 import { randomBytes } from 'node:crypto';
 import { dataDir, engineEntry } from './paths';
+import { secretKey } from './secret-key';
 
 export interface EngineInfo {
   url: string;
@@ -21,6 +22,8 @@ export function startEngine(): Promise<EngineInfo> {
     const proc = utilityProcess.fork(engineEntry(), ['--port', String(PREFERRED_PORT), '--token', token, '--data-dir', dataDir()], {
       serviceName: 'Grabbit engine',
       stdio: 'pipe',
+      // The logins key goes by environment, not on the command line where other programs could read it.
+      env: { ...process.env, GRABBIT_SECRET_KEY: secretKey() },
     });
     child = proc;
     const timer = setTimeout(() => reject(new Error('The download engine did not start within 15 seconds')), 15_000);

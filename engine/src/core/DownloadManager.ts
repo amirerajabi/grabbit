@@ -19,6 +19,8 @@ import { DownloadTask, probeUrl, requestHeaders, type TaskHost } from './Downloa
 import { RateLimiter, SpeedMeter } from './limiter';
 import { hashFile, isHashAlgo, parseChecksum, runPowerAction, scanFile } from './post';
 import { parseProxyUrl, setProxySettings } from './proxy';
+import { SecretStore } from './secrets';
+import { AuthError, setCredentialLookup } from './http';
 import { openPath } from './shell';
 import { defaultSettings, mergeSettings } from './settings';
 import { atomicWrite, clamp, isHttpUrl, newId, readJson, sanitizeFileName, TEMP_EXT, uniquePath } from './util';
@@ -49,6 +51,8 @@ export class DownloadManager extends EventEmitter implements TaskHost {
   private saveTimer: NodeJS.Timeout | null = null;
   private progressTimer: NodeJS.Timeout | null = null;
   private scheduleTimer: NodeJS.Timeout | null = null;
+  /** Downloads that stopped for a login prompt (their failure needs no toast). */
+  private askedLogin = new Set<string>();
   /** Downloads whose post-processing (verify, scan, extract) is still running. */
   private posting = new Set<string>();
   /** The pending when-done action: timer and the time it fires. */
@@ -58,14 +62,20 @@ export class DownloadManager extends EventEmitter implements TaskHost {
   /** "queueId@yyyy-mm-dd HH:mm:start|stop" of the last schedule action, so a minute fires once. */
   private fired = new Set<string>();
 
+  /** Saved site logins and archive passwords, encrypted on disk. */
+  readonly secrets: SecretStore;
+
   constructor(private readonly dataDir: string) {
     super();
+    this.secrets = new SecretStore(dataDir);
   }
 
   // ------------------------------------------------------------------ lifecycle
 
   load(): void {
     fs.mkdirSync(this.dataDir, { recursive: true });
+    this.secrets.load();
+    setCredentialLookup((host) => this.secrets.lookup(host));
     const saved = readJson<Partial<Settings>>(this.file('settings.json'));
     this.settingsValue = mergeSettings(defaultSettings(), saved ?? {});
     this.applyLimits();
@@ -100,6 +110,7 @@ export class DownloadManager extends EventEmitter implements TaskHost {
     await Promise.all([...this.tasks.values()].map((t) => t.stop()));
     await this.saveNow();
     await this.settingsWrite;
+    await this.secrets.flush();
   }
 
   private file(name: string): string {
@@ -160,7 +171,8 @@ export class DownloadManager extends EventEmitter implements TaskHost {
         this.posting.delete(item.id);
         this.checkWhenDone();
       });
-    } else if (item.status === 'error') {
+    } else if (item.status === 'error' && !this.askedLogin.delete(item.id)) {
+      // (A login prompt already explains it; no failure toast on top.)
       this.emitEvent({ type: 'notify', level: 'error', text: `Download failed: ${item.fileName}`, detail: item.error ?? undefined, downloadId: item.id });
     }
     this.pump();
@@ -313,6 +325,12 @@ export class DownloadManager extends EventEmitter implements TaskHost {
     } catch (e) {
       this.emitEvent({ type: 'notify', level: 'error', text: `Could not ${action === 'shutdown' ? 'shut down' : action}`, detail: e instanceof Error ? e.message : String(e) });
     }
+  }
+
+  /** A server wants a login: the window asks for it, then resumes the download. */
+  loginRequired(item: DownloadItem, e: AuthError): void {
+    this.askedLogin.add(item.id);
+    this.emitEvent({ type: 'login.required', downloadId: item.id, site: e.site, realm: e.realm, failed: e.failed });
   }
 
   claimedPaths(except: string): Set<string> {

@@ -8,6 +8,7 @@ import type {
   Queue,
   QueueSchedule,
   Settings,
+  SiteLogin,
 } from '../../../shared/protocol';
 import { getPlatform } from '../platform';
 
@@ -45,6 +46,12 @@ export const api = {
   update: (id: string, patch: Partial<Pick<DownloadItem, 'url' | 'fileName' | 'connections' | 'speedLimit' | 'description' | 'referer' | 'openWhenDone' | 'extract'>> & { checksum?: string | null }) =>
     call<DownloadItem>('PATCH', `/api/downloads/${id}`, patch),
   checksum: (id: string, algo: HashAlgo, expected?: string) => call<DownloadItem>('POST', `/api/downloads/${id}/checksum`, { algo, expected }),
+  logins: () => call<SiteLogin[]>('GET', '/api/logins'),
+  addLogin: (site: string, username: string, password: string) => call<SiteLogin>('POST', '/api/logins', { site, username, password }),
+  removeLogin: (id: string) => call<{ ok: true }>('DELETE', `/api/logins/${id}`),
+  archivePasswords: () => call<{ count: number }>('GET', '/api/archive-passwords'),
+  addArchivePassword: (password: string) => call<{ count: number }>('POST', '/api/archive-passwords', { password }),
+  clearArchivePasswords: () => call<{ count: number }>('DELETE', '/api/archive-passwords'),
   cancelWhenDone: () => call<{ ok: true }>('POST', '/api/when-done/cancel'),
   open: (id: string, reveal: boolean) => call<{ ok: true }>('POST', `/api/downloads/${id}/open`, { reveal }),
   openFolder: (dir?: string) => call<{ ok: true }>('POST', '/api/open-folder', { dir }),

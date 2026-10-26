@@ -5,6 +5,7 @@
 //   /norange/<name>?mb=N        same, but ignores Range (single connection, cannot resume)
 //   /redirect/<name>            302 to /files/<name>
 //   /expired/<name>             403 (a link that expired)
+//   /auth/<name>?mb=N           same as /files, behind a Basic login (demo / demo)
 //   /page                       an HTML page with file and navigation links (for the extension's "all links")
 import http from 'node:http';
 
@@ -32,13 +33,21 @@ http
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
       return void res.end(`<!doctype html><title>Grabbit test page</title><h1>Test downloads</h1><ul>${links}</ul><p><a href="/page?about">About</a> · <a href="https://example.com/">Elsewhere</a></p>`);
     }
-    if (kind === 'redirect') return void res.writeHead(302, { Location: `/files/${encodeURIComponent(name)}${url.search}` }).end();
+    if (kind === 'auth') {
+      // A file behind a login (HTTP Basic, user "demo", password "demo"), for Options → Site logins.
+      if (req.headers.authorization !== `Basic ${Buffer.from('demo:demo').toString('base64')}`) {
+        return void res.writeHead(401, { 'WWW-Authenticate': 'Basic realm="Grabbit test files"' }).end('Login required');
+      }
+    } else if (kind === 'redirect') {
+      return void res.writeHead(302, { Location: `/files/${encodeURIComponent(name)}${url.search}` }).end();
+    }
     if (kind === 'expired') return void res.writeHead(403).end('Link expired');
-    if (kind !== 'files' && kind !== 'norange') return void res.writeHead(404).end('Not found');
+    if (kind !== 'files' && kind !== 'norange' && kind !== 'auth') return void res.writeHead(404).end('Not found');
 
     const size = Math.round(Number(url.searchParams.get('mb') ?? 100) * 1024 * 1024);
     const rate = Number(url.searchParams.get('kbps') ?? 800) * 1024;
-    const m = kind === 'files' ? /bytes=(\d+)-(\d*)/.exec(req.headers.range ?? '') : null;
+    const ranged = kind === 'files' || kind === 'auth';
+    const m = ranged ? /bytes=(\d+)-(\d*)/.exec(req.headers.range ?? '') : null;
     const start = m ? Number(m[1]) : 0;
     const end = m && m[2] ? Math.min(Number(m[2]), size - 1) : size - 1;
     if (start >= size) return void res.writeHead(416, { 'Content-Range': `bytes */${size}` }).end();
@@ -46,7 +55,7 @@ http
       'Content-Type': 'application/octet-stream',
       'Content-Length': end - start + 1,
       'Content-Disposition': `attachment; filename="${name}"`,
-      ...(kind === 'files' ? { 'Accept-Ranges': 'bytes' } : {}),
+      ...(ranged ? { 'Accept-Ranges': 'bytes' } : {}),
     };
     if (m) headers['Content-Range'] = `bytes ${start}-${end}/${size}`;
     res.writeHead(m ? 206 : 200, headers);

@@ -1,4 +1,4 @@
-import { Download, FolderOpen, Gauge, Globe, Info, ListChecks, LoaderCircle, Network, RefreshCw, Settings, SlidersHorizontal } from 'lucide-react';
+import { Download, FolderOpen, Gauge, Globe, Info, KeyRound, ListChecks, LoaderCircle, Network, RefreshCw, Settings, SlidersHorizontal } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 import type { Settings as SettingsT } from '../../../../shared/protocol';
 import { attempt } from '../../app/commands';
@@ -9,6 +9,7 @@ import { useUi, type SettingsSection } from '../../store/ui';
 import { useUpdates } from '../../store/updates';
 import { Dialog, Field } from '../common/Dialog';
 import { BrandMark } from '../common/visuals';
+import { LoginsSection } from '../Logins/LoginsSection';
 import { WHEN_DONE_LABEL } from '../WhenDone/WhenDone';
 
 const SECTIONS: { id: SettingsSection; label: string; Icon: typeof Settings }[] = [
@@ -17,6 +18,7 @@ const SECTIONS: { id: SettingsSection; label: string; Icon: typeof Settings }[] 
   { id: 'saveto', label: 'Save to', Icon: FolderOpen },
   { id: 'speed', label: 'Speed limiter', Icon: Gauge },
   { id: 'after', label: 'After download', Icon: ListChecks },
+  { id: 'logins', label: 'Site logins', Icon: KeyRound },
   { id: 'integration', label: 'Browser & clipboard', Icon: Globe },
   { id: 'updates', label: 'Updates', Icon: RefreshCw },
   { id: 'about', label: 'About', Icon: Info },
@@ -127,6 +129,8 @@ function Section({ id, s }: { id: SettingsSection; s: SettingsT }) {
       return <SpeedSection s={s} />;
     case 'after':
       return <AfterSection s={s} />;
+    case 'logins':
+      return <LoginsSection />;
     case 'integration':
       return (
         <div className="settings-section">

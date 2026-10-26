@@ -2,7 +2,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import type { DownloadItem, Segment, Settings } from '../../../shared/protocol';
 import { categoryFor } from './categories';
-import { HttpError, openRequest, startFromContentRange, totalFromContentRange } from './http';
+import { AuthError, HttpError, openRequest, startFromContentRange, totalFromContentRange } from './http';
 import { RateLimiter, sleep } from './limiter';
 import { errorMessage, fileNameFrom, TEMP_EXT, uniquePath } from './util';
 
@@ -20,6 +20,8 @@ export interface TaskHost {
   ended(item: DownloadItem): void;
   /** Final paths other downloads already claim, lower-cased. */
   claimedPaths(except: string): Set<string>;
+  /** The server asked for a login that isn't saved, or refused the saved one. */
+  loginRequired(item: DownloadItem, e: AuthError): void;
 }
 
 export interface ProbeInfo {
@@ -155,6 +157,7 @@ export class DownloadTask {
         if (item.status !== 'completed') this.set({ status: 'stopped', speed: 0, eta: null });
       } else {
         this.set({ status: 'error', error: errorMessage(e), speed: 0, eta: null });
+        if (e instanceof AuthError) this.host.loginRequired(item, e);
       }
     } finally {
       item.activeMs += Date.now() - this.activeSince;

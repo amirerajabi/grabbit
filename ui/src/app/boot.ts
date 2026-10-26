@@ -49,6 +49,10 @@ function onEvent(e: EngineEvent): void {
     case 'whenDone':
       useEngine.getState().setWhenDone(e.at === null ? null : { action: e.action, at: e.at });
       return;
+    case 'login.required':
+      getPlatform().bringToFront();
+      useUi.getState().set({ loginPrompt: { downloadId: e.downloadId, site: e.site, realm: e.realm, failed: e.failed } });
+      return;
     case 'quit':
       getPlatform().quit();
       return;

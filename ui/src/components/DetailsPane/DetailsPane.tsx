@@ -1,4 +1,4 @@
-import { Copy, FolderOpen, Info, Pause, Play, RotateCcw, Settings2, SquareArrowOutUpRight, X } from 'lucide-react';
+import { Copy, FolderOpen, Info, KeyRound, Pause, Play, RotateCcw, Settings2, SquareArrowOutUpRight, X } from 'lucide-react';
 import { useEffect, useState, type ReactNode } from 'react';
 import type { DownloadItem, HashAlgo, Segment } from '../../../../shared/protocol';
 import { api } from '../../api/client';
@@ -103,7 +103,16 @@ function ItemDetails({ item: d }: { item: DownloadItem }) {
         </button>
       </div>
 
-      {d.status === 'error' && d.error && <div className="details-error">{d.error}</div>}
+      {d.status === 'error' && d.error && (
+        <div className="details-error">
+          <span>{d.error}</span>
+          {/needs a username and password|refused the saved username/.test(d.error) && (
+            <button className="btn btn-xs" onClick={() => useUi.getState().set({ loginPrompt: { downloadId: d.id, site: hostOf(d.finalUrl ?? d.url), realm: null, failed: /refused/.test(d.error ?? '') } })}>
+              <KeyRound size={14} /> Enter login
+            </button>
+          )}
+        </div>
+      )}
 
       <div className="details-progress">
         <SegmentMap segments={d.segments} size={d.size} status={d.status} />
@@ -206,6 +215,14 @@ function AfterDownload({ item: d }: { item: DownloadItem }) {
       {!p.scan && !p.extract && p.message && <Kv k="Note" v={<span className="text-warning">{p.message}</span>} />}
     </>
   );
+}
+
+function hostOf(url: string): string {
+  try {
+    return new URL(url).hostname;
+  } catch {
+    return '';
+  }
 }
 
 function HashText({ hash }: { hash: string }) {

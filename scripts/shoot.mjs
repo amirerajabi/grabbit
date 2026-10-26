@@ -52,6 +52,7 @@ try {
   if (setup) {
     const r = await send('Runtime.evaluate', { expression: setup, awaitPromise: true, returnByValue: true }, sessionId);
     if (r.exceptionDetails) throw new Error(r.exceptionDetails.exception?.description ?? r.exceptionDetails.text);
+    if (r.result.value !== undefined) console.log('page:', JSON.stringify(r.result.value));
     await sleep(1500);
   }
   const { data } = await send('Page.captureScreenshot', { format: 'png' }, sessionId);

@@ -13,6 +13,7 @@ import { DetailsPane } from './components/DetailsPane/DetailsPane';
 import { DownloadList } from './components/DownloadList/DownloadList';
 import { Dock } from './components/layout/Dock';
 import { TopBar } from './components/layout/TopBar';
+import { LoginDialog } from './components/Logins/LoginDialog';
 import { PropertiesDialog } from './components/Properties/PropertiesDialog';
 import { QueuesDialog } from './components/Queues/QueuesDialog';
 import { SettingsDialog } from './components/Settings/SettingsDialog';
@@ -53,6 +54,7 @@ export default function App() {
       <ShortcutSheet />
       <ConfirmDialog />
       <WhenDoneCountdown />
+      <LoginDialog />
       <Toasts />
     </div>
   );
