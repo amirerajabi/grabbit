@@ -9,7 +9,7 @@
     "dev": "tsx watch src/index.ts --port 7310 --token dev --data-dir ../.dev-data",
     "start": "tsx src/index.ts --port 7310 --token dev --data-dir ../.dev-data",
     "typecheck": "tsc --noEmit",
-    "bundle": "esbuild src/index.ts --bundle --platform=node --target=node20 --format=cjs --outfile=dist/engine.cjs",
+    "bundle": "esbuild src/index.ts --bundle --platform=node --target=node20 --format=cjs --external:cpu-features --external:*.node --outfile=dist/engine.cjs",
     "build": "npm run typecheck && npm run bundle",
     "test": "tsx --test test/*.test.ts"
   },

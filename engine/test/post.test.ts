@@ -124,7 +124,7 @@ test('when-done: counts down after the last download, fires once, and a cancel s
   const countdown = events.find((e) => e.type === 'whenDone' && e.at !== null);
   assert.ok(countdown, 'a countdown started');
   const fired = events.find((e) => e.type === 'notify' && e.text === 'When done: shutdown');
-  assert.ok(fired && fired.type === 'notify' && fired.detail?.startsWith('dry run: shutdown'), 'the dry-run shutdown ran');
+  assert.ok(fired && fired.type === 'notify' && fired.detail === `dry run: ${powerCommand('shutdown')!.flat(2).join(' ')}`, 'the dry-run shutdown ran');
   assert.equal(m.getSettings().whenDone, 'nothing', 'one-shot: the setting resets');
 
   events.length = 0;

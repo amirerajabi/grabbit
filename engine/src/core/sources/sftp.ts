@@ -1,7 +1,9 @@
 // SFTP downloads over SSH (the ssh2 library): stat for the size, ranged reads for resume and segments (each segment is
 // its own SSH connection). Logins: a saved one or user:pass in the address; without a password, the SSH agent and the
 // usual key files (~/.ssh/id_ed25519, id_ecdsa, id_rsa, unencrypted ones) are tried. The server's host key is trusted on
-// first use and checked afterwards, like ssh's known_hosts.
+// first use and checked afterwards, like ssh's known_hosts. ssh2's optional native add-ons (sshcrypto.node,
+// cpu-features), which npm compiles on Linux and macOS, are left out of the bundle (`bundle` in package.json); ssh2
+// loads them in a try/catch and uses its JavaScript ciphers without them.
 import { createHash } from 'node:crypto';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
