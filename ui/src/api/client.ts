@@ -13,6 +13,7 @@ import type {
   SiteLogin,
   ToolInfo,
   ToolName,
+  VideoProbe,
 } from '../../../shared/protocol';
 import { getPlatform } from '../platform';
 
@@ -45,6 +46,7 @@ export const api = {
   add: (req: AddDownloadRequest) => call<DownloadItem>('POST', '/api/downloads', req),
   addBatch: (urls: string[], base: Omit<AddDownloadRequest, 'url'>) => call<DownloadItem[]>('POST', '/api/downloads/batch', { ...base, urls }),
   grab: (req: GrabRequest) => call<GrabResult>('POST', '/api/grab', req),
+  probeVideo: (url: string) => call<VideoProbe>('POST', '/api/video/probe', { url }),
   stopGrab: (id: string) => call<{ ok: true }>('POST', `/api/grab/${id}/stop`),
   bulk: (ids: string[], action: BulkAction, arg?: string) => call<{ ok: true }>('POST', '/api/downloads/actions', { ids, action, arg }),
   pauseAll: () => call<{ ok: true }>('POST', '/api/downloads/pause-all'),

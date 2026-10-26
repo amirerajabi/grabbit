@@ -78,7 +78,11 @@ async function startFixtures() {
 
   const port = await freePort();
   const tsx = path.join(root, 'engine', 'node_modules', 'tsx', 'dist', 'cli.mjs');
-  const engine = spawn(process.execPath, [tsx, path.join(root, 'engine', 'src', 'index.ts'), '--port', String(port), '--token', 'test', '--data-dir', path.join(work, 'engine-data')], { stdio: 'ignore' });
+  const engine = spawn(process.execPath, [tsx, path.join(root, 'engine', 'src', 'index.ts'), '--port', String(port), '--token', 'test', '--data-dir', path.join(work, 'engine-data')], {
+    stdio: 'ignore',
+    // Nothing here may fetch yt-dlp from GitHub: a video request then fails fast instead.
+    env: { ...process.env, GRABBIT_TOOLS_API: 'http://127.0.0.1:9' },
+  });
   children.push(engine);
   const engineUrl = `http://127.0.0.1:${port}`;
   const ok = await waitFor(() => fetch(`${engineUrl}/api/state`, { headers: { Authorization: 'Bearer test' } }).then((r) => r.ok), 20_000);
@@ -206,6 +210,9 @@ async function testChromium(browser, exe, engineUrl, check) {
 
     await evalSw(`sendToGrabbit('${FILES}/files/${browser}-link.zip?mb=2', { referer: '${PAGE}' })`);
     check('"Download with Grabbit" sends the link', !!(await waitFor(async () => (await names()).has(`${browser}-link.zip`), 5000)));
+
+    const video = await evalSw(`post({ url: '${PAGE}', referer: '${PAGE}', video: true })`);
+    check('"Download video with Grabbit" reaches the engine', typeof video?.id === 'string', JSON.stringify(video));
 
     const { targetId } = await send('Target.createTarget', { url: PAGE });
     await sleep(1500);

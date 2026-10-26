@@ -11,6 +11,8 @@ export interface AddDialogState {
   headers?: Record<string, string>;
   /** Capture request id from the browser extension. */
   captureId?: string;
+  /** "Download video" from the browser: look for a video on the page right away. */
+  video?: boolean;
 }
 
 export interface Toast {

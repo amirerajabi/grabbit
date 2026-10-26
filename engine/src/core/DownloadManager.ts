@@ -15,6 +15,8 @@ import type {
   QueueSchedule,
   Settings,
   ToolName,
+  VideoChoice,
+  VideoProbe,
   WhenDoneAction,
 } from '../../../shared/protocol';
 import { categoryFolder, categoryFor, extensionOf, isCategoryId } from './categories';
@@ -31,6 +33,7 @@ import { setKnownHostsFile } from './sources/sftp';
 import { openPath } from './shell';
 import { defaultSettings, mergeSettings } from './settings';
 import { ToolManager } from './tools';
+import { probeVideo, VideoTask, type Command, type VideoHost } from './video';
 import { atomicWrite, clamp, isHttpUrl, newId, readJson, sanitizeFileName, TEMP_EXT, uniquePath } from './util';
 
 const MAIN_QUEUE = 'main';
@@ -44,9 +47,9 @@ interface StoreFile {
   queues: Queue[];
 }
 
-export class DownloadManager extends EventEmitter implements TaskHost {
+export class DownloadManager extends EventEmitter implements VideoHost {
   private items = new Map<string, DownloadItem>();
-  private tasks = new Map<string, DownloadTask>();
+  private tasks = new Map<string, DownloadTask | VideoTask>();
   private meters = new Map<string, SpeedMeter>();
   private queues: Queue[] = [];
   private settingsValue: Settings = defaultSettings();
@@ -74,6 +77,9 @@ export class DownloadManager extends EventEmitter implements TaskHost {
   readonly secrets: SecretStore;
   /** 7-Zip, yt-dlp and ffmpeg, fetched on first use. */
   readonly tools: ToolManager;
+  /** How yt-dlp and ffmpeg are found; tests replace these with stand-ins. */
+  ytdlp: () => Promise<Command> = async () => [await this.tools.ensure('yt-dlp')];
+  ffmpeg: () => Promise<string | null> = () => this.tools.ensure('ffmpeg').catch(() => null);
 
   constructor(private readonly dataDir: string) {
     super();
@@ -109,6 +115,7 @@ export class DownloadManager extends EventEmitter implements TaskHost {
       if (d.post.step) d.post.step = null;
       d.openWhenDone ??= false;
       d.extract ??= null;
+      d.video ??= null;
       this.items.set(d.id, d);
     }
     // unref: the HTTP server is what keeps the engine alive, not these timers.
@@ -452,6 +459,23 @@ export class DownloadManager extends EventEmitter implements TaskHost {
     return sub ? path.join(s.downloadDir, sub) : s.downloadDir;
   }
 
+  /** The video on a web page and the qualities it comes in (yt-dlp). */
+  async probeVideo(url: string): Promise<VideoProbe> {
+    url = url.trim();
+    if (!/^https?:\/\/\S+$/i.test(url)) throw new Error('Enter the address of a web page with a video');
+    return probeVideo(await this.ytdlp(), url, this.settingsValue);
+  }
+
+  /** "Download video" from the browser with no window open: best quality, named after the video's title. */
+  private async addVideoFromPage(url: string, referer?: string): Promise<void> {
+    try {
+      const p = await this.probeVideo(url);
+      this.add({ url, referer, fileName: `${p.title}.${p.options[0].ext}`, video: p.options[0], probe: { finalUrl: url, size: p.options[0].size, resumable: true, mime: null }, start: 'now' });
+    } catch (e) {
+      this.emitEvent({ type: 'notify', level: 'error', text: 'No video found', detail: e instanceof Error ? e.message : String(e) });
+    }
+  }
+
   /** Site grabber: crawl from a page and return the links to files of the chosen types. */
   async grab(raw: Partial<GrabRequest>): Promise<GrabResult> {
     const url = String(raw.url ?? '').trim();
@@ -496,8 +520,10 @@ export class DownloadManager extends EventEmitter implements TaskHost {
   add(req: AddDownloadRequest): DownloadItem {
     const url = (req.url ?? '').trim();
     if (!isSupportedUrl(url)) throw new Error('Enter an http, https, ftp or sftp address');
+    const video = videoChoice(req.video);
+    if (video && !/^https?:\/\//i.test(url)) throw new Error('Videos come from web pages (http or https)');
     let fileName = sanitizeFileName(req.fileName?.trim() || fileNameFromUrl(url));
-    const category = isCategoryId(req.category) ? req.category : categoryFor(fileName, req.probe?.mime);
+    const category = isCategoryId(req.category) ? req.category : video ? (video.label === 'Audio only' ? 'music' : 'video') : categoryFor(fileName, req.probe?.mime);
     const dir = req.dir?.trim() || this.dirFor(category);
     if (this.settingsValue.duplicateAction === 'rename') fileName = path.basename(uniquePath(dir, fileName, this.claimedPaths('')));
     const queueId = req.start === 'queue' ? (this.queues.some((q) => q.id === req.queueId) ? req.queueId! : MAIN_QUEUE) : null;
@@ -533,6 +559,7 @@ export class DownloadManager extends EventEmitter implements TaskHost {
       post: emptyPost(),
       openWhenDone: req.openWhenDone === true,
       extract: typeof req.extract === 'boolean' ? req.extract : null,
+      video,
     };
     if (req.checksum?.trim()) {
       item.checksum = parseChecksum(req.checksum);
@@ -565,7 +592,7 @@ export class DownloadManager extends EventEmitter implements TaskHost {
 
   private startOne(item: DownloadItem): void {
     if (this.tasks.has(item.id) || item.status === 'completed') return;
-    const task = new DownloadTask(item, this);
+    const task = item.video ? new VideoTask(item, this) : new DownloadTask(item, this);
     this.tasks.set(item.id, task);
     if (this.whenDoneTimer) this.cancelWhenDone(false);
     const meter = new SpeedMeter();
@@ -753,6 +780,10 @@ export class DownloadManager extends EventEmitter implements TaskHost {
 
   capture(req: Omit<CaptureRequest, 'id'>): CaptureRequest | DownloadItem {
     if (!isHttpUrl(req.url)) throw new Error('Not an http(s) address');
+    if (req.video && !this.uiConnected()) {
+      void this.addVideoFromPage(req.url, req.referer);
+      return { ...req, id: newId() };
+    }
     if (!this.settingsValue.showAddDialog || !this.uiConnected()) {
       return this.add({ url: req.url, fileName: req.fileName, referer: req.referer, headers: req.headers, start: 'now' });
     }
@@ -887,6 +918,14 @@ export class DownloadManager extends EventEmitter implements TaskHost {
     this.markDirty();
     this.emitEvent({ type: 'progress', entries, totalSpeed });
   }
+}
+
+/** A video choice from the API, checked: a short yt-dlp format selector and its label. */
+function videoChoice(v: unknown): VideoChoice | null {
+  if (!v || typeof v !== 'object') return null;
+  const { format, label } = v as Partial<VideoChoice>;
+  if (typeof format !== 'string' || !/^[\w*+/\[\]<>=!:.,-]{1,120}$/.test(format)) throw new Error('Unknown video format');
+  return { format, label: typeof label === 'string' && label.trim() ? label.trim().slice(0, 60) : format };
 }
 
 export function emptyPost(): DownloadItem['post'] {

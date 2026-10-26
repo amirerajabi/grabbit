@@ -1,12 +1,13 @@
-import { AlertTriangle, ChevronDown, ChevronRight, CircleCheck, Download, FolderOpen, LoaderCircle } from 'lucide-react';
+import { AlertTriangle, ChevronDown, ChevronRight, CircleCheck, Download, Film, FolderOpen, LoaderCircle } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
-import type { CategoryId, ProbeResult } from '../../../../shared/protocol';
+import type { CategoryId, ProbeResult, VideoOption, VideoProbe } from '../../../../shared/protocol';
 import { api } from '../../api/client';
 import { attempt } from '../../app/commands';
 import { isArchive } from '../../lib/archive';
 import { isChecksum } from '../../lib/checksum';
 import { formatBytes } from '../../lib/format';
 import { categoryDir, fileNameFromUrl, guessCategory } from '../../lib/paths';
+import { formatDuration, isVideoSite } from '../../lib/video';
 import { getPlatform } from '../../platform';
 import { useDownloads } from '../../store/downloads';
 import { useEngine } from '../../store/engine';
@@ -49,6 +50,11 @@ function AddForm() {
   const extractOn = extract ?? settings?.extractArchives ?? false;
   const checksumValid = isChecksum(checksum);
   const [busy, setBusy] = useState(false);
+  // A video on the page (yt-dlp): looked for at once on video sites or for "Download video", else on request.
+  const [video, setVideo] = useState<{ state: 'idle' | 'looking' | 'found' | 'none'; probe?: VideoProbe; error?: string; url?: string }>({ state: 'idle' });
+  const [videoFormat, setVideoFormat] = useState<string | null>(null);
+  const ytdlpMissing = useEngine((s) => s.tools.find((t) => t.name === 'yt-dlp')?.state !== 'ready');
+  const chosen: VideoOption | null = (video.state === 'found' && video.probe?.options.find((o) => o.format === videoFormat)) || null;
 
   const validUrl = /^(?:https?|s?ftp):\/\/\S+$/i.test(url.trim());
   const duplicate = useMemo(() => Object.values(items).find((d) => d.url === url.trim()), [items, url]);
@@ -82,12 +88,42 @@ function AddForm() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [url, referer]);
 
+  const findVideo = async (target: string) => {
+    setVideo({ state: 'looking', url: target });
+    try {
+      const p = await api.probeVideo(target);
+      setVideo((v) => (v.url === target ? { state: 'found', probe: p, url: target } : v));
+      pickVideo(p, p.options[0]);
+    } catch (e) {
+      setVideo((v) => (v.url === target ? { state: 'none', error: e instanceof Error ? e.message : String(e), url: target } : v));
+    }
+  };
+
+  const pickVideo = (p: VideoProbe, o: VideoOption | null) => {
+    setVideoFormat(o?.format ?? null);
+    if (!o) return;
+    if (!nameTouched) setFileName(`${p.title}.${o.ext}`);
+    if (!catTouched) setCategory(o.audioOnly ? 'music' : 'video');
+  };
+
+  useEffect(() => {
+    const target = url.trim();
+    setVideoFormat(null);
+    if (!validUrl || !(isVideoSite(target) || (init.video && target === init.url))) {
+      setVideo({ state: 'idle' });
+      return;
+    }
+    const t = setTimeout(() => void findVideo(target), 300);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [url]);
+
   // Category and folder follow the file name until the user picks them.
   useEffect(() => {
-    if (catTouched) return;
+    if (catTouched || chosen) return;
     const c = probe?.category && probe.fileName === fileName ? probe.category : guessCategory(fileName);
     setCategory(c);
-  }, [fileName, probe, catTouched]);
+  }, [fileName, probe, catTouched, chosen]);
   useEffect(() => {
     if (!dirTouched && settings) setDir(categoryDir(settings, category));
   }, [category, settings, dirTouched]);
@@ -114,7 +150,8 @@ function AddForm() {
           referer: referer.trim() || undefined,
           headers: init.headers,
           description: description.trim() || undefined,
-          probe: probe ? { finalUrl: probe.finalUrl, size: probe.size, resumable: probe.resumable, mime: probe.mime } : undefined,
+          probe: chosen ? { finalUrl: url.trim(), size: chosen.size, resumable: true, mime: null } : probe ? { finalUrl: probe.finalUrl, size: probe.size, resumable: probe.resumable, mime: probe.mime } : undefined,
+          video: chosen ? { format: chosen.format, label: chosen.label } : undefined,
           checksum: checksum.trim() || undefined,
           openWhenDone,
           extract: extract ?? undefined,
@@ -180,6 +217,11 @@ function AddForm() {
             <span className="muted">
               <LoaderCircle size={14} className="spin" /> Checking the address…
             </span>
+          ) : chosen ? (
+            <span>
+              <CircleCheck size={14} className="text-success" /> <strong className="tabular">{chosen.size !== null ? `About ${formatBytes(chosen.size)}` : 'Unknown size'}</strong>
+              <span className="muted"> · the video, fetched with yt-dlp</span>
+            </span>
           ) : probeError ? (
             <span>
               <AlertTriangle size={14} /> {probeError}. You can still add it; Grabbit will try again when it starts.
@@ -194,6 +236,49 @@ function AddForm() {
             </>
           ) : null}
         </div>
+
+        {(video.state !== 'idle' || probe?.mime === 'text/html') && (
+          <div className="video-panel">
+            {video.state === 'idle' ? (
+              <div className="video-ask">
+                <span className="muted">This address is a web page.</span>
+                <button className="btn btn-xs" onClick={() => void findVideo(url.trim())}>
+                  <Film size={14} /> Look for a video on it
+                </button>
+              </div>
+            ) : video.state === 'looking' ? (
+              <span className="muted">
+                <LoaderCircle size={14} className="spin" /> Looking for a video on this page…{ytdlpMissing ? ' The first time, Grabbit downloads yt-dlp (about 18 MB).' : ''}
+              </span>
+            ) : video.state === 'none' ? (
+              <span className="text-warning">
+                <AlertTriangle size={14} /> No video found: {video.error}
+              </span>
+            ) : video.probe ? (
+              <>
+                <div className="video-head">
+                  <Film size={16} className="text-accent" />
+                  <strong className="ellipsis">{video.probe.title}</strong>
+                  <span className="muted">
+                    {video.probe.site}
+                    {video.probe.duration ? ` · ${formatDuration(video.probe.duration)}` : ''}
+                  </span>
+                </div>
+                <Field label="Quality">
+                  <select className="input select" value={videoFormat ?? ''} onChange={(e) => pickVideo(video.probe!, video.probe!.options.find((o) => o.format === e.target.value) ?? null)}>
+                    {video.probe.options.map((o) => (
+                      <option key={o.format} value={o.format}>
+                        {o.label}
+                        {o.size ? ` · about ${formatBytes(o.size)}` : ''}
+                      </option>
+                    ))}
+                    <option value="">The web page itself, not the video</option>
+                  </select>
+                </Field>
+              </>
+            ) : null}
+          </div>
+        )}
 
         {duplicate && (
           <div className="notice warning">
@@ -261,7 +346,7 @@ function AddForm() {
         <button className="link-btn disclosure" onClick={() => setAdvanced(!advanced)} aria-expanded={advanced}>
           {advanced ? <ChevronDown size={14} /> : <ChevronRight size={14} />} Advanced
         </button>
-        {advanced && (
+        {advanced && !chosen && (
           <div className="form-row">
             <Field label="Connections" hint="Parallel parts for this file">
               <input className="input" type="number" min={1} max={32} value={connections} onChange={(e) => setConnections(Math.max(1, Math.min(32, Number(e.target.value) || 1)))} />

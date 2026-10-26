@@ -129,20 +129,26 @@ function ItemDetails({ item: d }: { item: DownloadItem }) {
         <dl className="kv">
           <Kv k="Address" v={<UrlValue url={d.url} />} />
           <Kv k="Save to" v={<span className="selectable mono-sm">{d.dir}</span>} />
-          <Kv k="Status" v={d.status === 'error' ? 'Failed' : running ? `Receiving data · ${active} of ${d.connections} connections` : d.status === 'completed' ? `Completed ${formatDate(d.completedAt)}` : 'Not running'} />
+          {d.video && <Kv k="Video" v={`${d.video.label}, downloaded with yt-dlp`} />}
+          <Kv
+            k="Status"
+            v={d.status === 'error' ? 'Failed' : running ? (d.video ? 'Receiving data' : `Receiving data · ${active} of ${d.connections} connections`) : d.status === 'completed' ? `Completed ${formatDate(d.completedAt)}` : 'Not running'}
+          />
           <Kv k="Transfer rate" v={running ? formatSpeed(d.speed) : avg ? `${formatSpeed(avg)} average` : '—'} />
           <Kv k="Time left" v={running ? formatEta(d.eta) : '—'} />
-          <Kv
-            k="Resume capability"
-            v={d.size === null && d.finalUrl === null ? 'Unknown until started' : d.resumable ? <span className="text-success">Yes</span> : <span className="text-warning">No — pausing restarts the file</span>}
-          />
+          {!d.video && (
+            <Kv
+              k="Resume capability"
+              v={d.size === null && d.finalUrl === null ? 'Unknown until started' : d.resumable ? <span className="text-success">Yes</span> : <span className="text-warning">No — pausing restarts the file</span>}
+            />
+          )}
           {queue && <Kv k="Queue" v={queue.name} />}
           <Kv k="Added" v={formatDate(d.addedAt)} />
           {d.retries > 0 && <Kv k="Retries" v={String(d.retries)} />}
           {d.description && <Kv k="Description" v={d.description} />}
           <AfterDownload item={d} />
         </dl>
-        <ConnectionsTable segments={d.segments} running={running} />
+        {d.video ? <div className="conn-table muted">yt-dlp fetches the video and audio tracks over its own connections, and FFmpeg joins them.</div> : <ConnectionsTable segments={d.segments} running={running} />}
       </div>
     </div>
   );

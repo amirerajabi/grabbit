@@ -76,6 +76,7 @@ export function createServer(manager: DownloadManager, token: string): http.Serv
   route('POST', '/api/downloads/:id/extract', ({ params, body }) => manager.extractNow(params.id, typeof body?.password === 'string' ? body.password : undefined));
   route('GET', '/api/tools', () => manager.tools.list());
   route('POST', '/api/grab', ({ body }) => manager.grab(body ?? {}));
+  route('POST', '/api/video/probe', ({ body }) => manager.probeVideo(String(body?.url ?? '')));
   route('POST', '/api/grab/:id/stop', ({ params }) => (manager.stopGrab(params.id), { ok: true }));
   // Installing takes a while: answer at once, progress and the outcome arrive as "tools" events.
   route('POST', '/api/tools/:name/install', ({ params }) => {
@@ -146,7 +147,7 @@ export function createServer(manager: DownloadManager, token: string): http.Serv
           return send(res, 200, { ok: true, count: Array.isArray(result) ? result.length : result.urls?.length });
         }
         const fileName = typeof body?.fileName === 'string' ? body.fileName : undefined;
-        const result = manager.capture({ url: String(body?.url ?? ''), fileName, referer, headers: pickHeaders(body?.headers), source: 'browser' });
+        const result = manager.capture({ url: String(body?.url ?? ''), fileName, referer, headers: pickHeaders(body?.headers), source: 'browser', video: body?.video === true || undefined });
         return send(res, 200, { ok: true, id: result.id });
       } catch (e) {
         return send(res, 400, { error: errorMessage(e) });

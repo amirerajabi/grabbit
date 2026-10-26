@@ -67,6 +67,33 @@ export interface DownloadItem {
   openWhenDone: boolean;
   /** Extract this archive when it finishes; null = follow the setting. */
   extract: boolean | null;
+  /** A video from a web page, downloaded with yt-dlp in the chosen quality; null for a plain file. */
+  video: VideoChoice | null;
+}
+
+/** The quality picked for a video download: a yt-dlp format selector and its label ("1080p", "Audio only"). */
+export interface VideoChoice {
+  format: string;
+  label: string;
+}
+
+export interface VideoOption extends VideoChoice {
+  ext: string;
+  height: number | null;
+  /** Estimated download size, when the site says. */
+  size: number | null;
+  audioOnly: boolean;
+}
+
+/** What yt-dlp found on a page: one video and the qualities it comes in. */
+export interface VideoProbe {
+  url: string;
+  title: string;
+  site: string;
+  thumbnail: string | null;
+  /** Seconds. */
+  duration: number | null;
+  options: VideoOption[];
 }
 
 export type HashAlgo = 'md5' | 'sha1' | 'sha256' | 'sha512';
@@ -243,6 +270,8 @@ export interface AddDownloadRequest {
   checksum?: string;
   openWhenDone?: boolean;
   extract?: boolean | null;
+  /** Download a video from this page with yt-dlp, in this quality. */
+  video?: VideoChoice;
 }
 
 /** A saved site login, as the UI sees it: never the password. */
@@ -261,6 +290,8 @@ export interface CaptureRequest {
   url: string;
   /** "Download all links": several addresses at once; they open in the Batch dialog to pick from. */
   urls?: string[];
+  /** "Download video": look for a video on the page (yt-dlp) instead of downloading the address itself. */
+  video?: boolean;
   fileName?: string;
   referer?: string;
   headers?: Record<string, string>;

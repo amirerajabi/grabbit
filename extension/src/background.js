@@ -69,6 +69,7 @@ function createMenus() {
     api.contextMenus.create({ id: 'grabbit-link', title: 'Download with Grabbit', contexts: ['link', 'video', 'audio', 'image'] });
     api.contextMenus.create({ id: 'grabbit-selection', title: 'Download selected links with Grabbit', contexts: ['selection'] });
     api.contextMenus.create({ id: 'grabbit-page', title: 'Download all links with Grabbit', contexts: ['page'] });
+    api.contextMenus.create({ id: 'grabbit-video', title: 'Download video with Grabbit', contexts: ['page', 'video', 'link'] });
   });
 }
 
@@ -94,6 +95,17 @@ api.contextMenus.onClicked.addListener(async (info, tab) => {
     } catch {
       flash('!', '#dc2626');
       giveBack(url); // Grabbit is not running: let the browser handle it.
+    }
+    return;
+  }
+  if (info.menuItemId === 'grabbit-video') {
+    // A <video> element's source is usually a blob: stream; the page address is what yt-dlp understands.
+    const url = info.linkUrl || info.pageUrl || tab?.url;
+    if (!url || !/^https?:/i.test(url)) return;
+    try {
+      await post({ url, referer: tab?.url, video: true });
+    } catch {
+      flash('!', '#dc2626');
     }
     return;
   }

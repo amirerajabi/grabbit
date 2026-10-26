@@ -72,7 +72,7 @@ function onEvent(e: EngineEvent): void {
         useUi.getState().set({ batchOpen: true, batchPrefill: { urls: e.request.urls, referer: e.request.referer, headers: e.request.headers } });
         return;
       }
-      useUi.getState().queueAdd({ url: e.request.url, fileName: e.request.fileName, referer: e.request.referer, headers: e.request.headers, captureId: e.request.id });
+      useUi.getState().queueAdd({ url: e.request.url, fileName: e.request.fileName, referer: e.request.referer, headers: e.request.headers, captureId: e.request.id, video: e.request.video });
       return;
     case 'notify': {
       useUi.getState().toast({ level: e.level, text: e.text, detail: e.detail, downloadId: e.downloadId });
