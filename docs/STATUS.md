@@ -28,10 +28,12 @@ An icon and color redesign (the "split arrow" in indigo and mint) was tried and 
 
 ## Open work
 
-- **Store listings for the extensions:** Chrome Web Store (one-time US$5), Edge Add-ons and addons.mozilla.org need
-  developer accounts that only the user can create. Then upload the zips from the latest release; the steps and
-  permission justifications are in `docs/browser-extensions.md`. Once on AMO, Firefox users can keep the add-on
-  (release Firefox only keeps signed add-ons).
+- **Store listings for the extensions:** everything is prepared in `store/` (listing text, screenshots, promo tiles,
+  step-by-step guide) and `.github/workflows/publish-extensions.yml` publishes each release to all three stores once
+  their secrets are set. Waiting on the user: create the developer accounts (Chrome Web Store, one-time US$5; Edge
+  Add-ons; addons.mozilla.org), make the first submission by hand, then add the API secrets (store/README.md, part 2).
+  The publish script was checked with a dry run and against the real store APIs with fake keys (all three rejected the
+  login, as expected); a real upload hasn't happened yet.
 - **Code signing:** Windows builds are unsigned (SmartScreen warns), and macOS builds are unsigned (no in-place
   updates on macOS; the app only announces new versions). Both need certificates from the user.
 - **Firefox context menus** are not covered by the automated browser test (WebDriver BiDi cannot click menus). The menu

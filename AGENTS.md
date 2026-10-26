@@ -17,6 +17,7 @@ Read [docs/STATUS.md](docs/STATUS.md) first: what is released, what is on `main`
 | `shared/protocol.ts` | Wire types shared by engine, UI and desktop (types only). |
 | `scripts/` | `run.mjs` (dev launchers), `build-extensions.mjs`, `test-extensions.mjs` (loads the extensions in real browsers), `test-server.mjs` (local file server). |
 | `docs/` | `STATUS.md`, release notes, `browser-extensions.md`, `PRIVACY.md`. |
+| `store/` | Extension store listing text, images (`npm run store:assets`) and the publishing guide. `scripts/publish-extensions.mjs` + `.github/workflows/publish-extensions.yml` upload each release to Chrome, Firefox and Edge stores. |
 | `.github/workflows/` | `ci.yml` (typecheck, tests, UI build, extension build + Firefox lint), `release.yml` (tag `v*` → installers + extensions → GitHub Release). |
 
 ## Commands

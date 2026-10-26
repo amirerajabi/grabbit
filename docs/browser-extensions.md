@@ -44,6 +44,10 @@ This writes the unpacked extensions to `extension/dist/<browser>/` and the store
 
 ## Publish to the stores
 
+The full guide, the listing text and the store images are in [store/](../store/README.md): the first submission to each
+store by hand, then automatic updates on every release (`.github/workflows/publish-extensions.yml`). The summary below is
+kept for reference.
+
 Each store needs a developer account, which only you can create. After the first submission, each new version is an
 upload of the matching zip from the release.
 
