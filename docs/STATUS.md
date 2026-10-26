@@ -3,15 +3,20 @@
 Where the project stands, for whoever picks it up next (person or agent). Update it when you release, finish an item
 or leave work half done.
 
-_Last updated: 2026-10-22_
+_Last updated: 2026-10-26_
 
 ## Released
 
-**v1.0.2** (2026-10-22): https://github.com/amirerajabi/grabbit/releases/tag/v1.0.2
+**v1.1.0** (2026-10-26): https://github.com/amirerajabi/grabbit/releases/tag/v1.1.0
 
-- Brings the window to the front when a link arrives from the extension or the clipboard (`f765f99`).
+- Videos from web pages (yt-dlp, with FFmpeg to join tracks), the site grabber (Batch → Website), FTP and SFTP, archive
+  extraction with 7-Zip (multi-part, passwords), proxy settings (system, HTTP, SOCKS5), site logins (Basic, Digest,
+  encrypted vault), checksums, virus scan, open when done, and when-done power actions.
+- 7-Zip, yt-dlp and FFmpeg are fetched on first use from their GitHub releases (SHA-256 checked) unless installed; see
+  `engine/src/core/tools.ts`. Real-world checks done: 7-Zip 26.05 install on Windows, yt-dlp against Wikimedia
+  Commons. YouTube is unreachable from the development machine, so it was only covered with the stand-in yt-dlp.
 - Windows installer, macOS DMG/ZIP (Apple silicon), Linux AppImage, and extension packages for Chrome, Edge and Firefox.
-- v1.0.1 added the browser extensions; v1.0.0 was the first public release (in-app updates included).
+- v1.0.2 brought the window to the front for captured links; v1.0.1 added the browser extensions; v1.0.0 was the first public release (in-app updates included).
 
 ## On `main`, not released yet
 
@@ -41,14 +46,15 @@ An icon and color redesign (the "split arrow" in indigo and mint) was tried and 
 
 ## Ideas not started
 
-From IDM, not built yet: proxy settings, video/stream grabbing (HLS/DASH), "shut down / sleep when done", per-site
-login credentials, and a floating drop target. macOS Intel (x64) builds are not produced either (the release workflow
+From IDM, not built yet: a floating drop target and FTPS. A redesigned UI layout was proposed (four mockups); the user
+has not picked one. macOS Intel (x64) builds are not produced either (the release workflow
 builds arm64 only).
 
 ## History
 
 | Version | Highlights |
 | --- | --- |
+| 1.1.0 | Video grabbing (yt-dlp), site grabber, FTP/SFTP, archive extraction, proxy, site logins, checksums, virus scan, when-done actions |
 | 1.0.2 | The window comes to the front with the Add dialog when a link is captured from the browser or the clipboard |
 | 1.0.1 | Browser extensions (Chrome, Edge, Firefox) with "Download all links"; fix for the extension's status check being refused (no `Origin` from Chromium); fix for quick settings changes crashing the engine |
 | 1.0.0 | First release: segmented downloads with dynamic splitting, resume, queues and scheduler, speed limiter, categories, batch, tray, clipboard monitor, auto-update |

@@ -7,7 +7,7 @@
 - Comments say why, not what, in full sentences. File headers explain the module's job.
 - Types that cross a process boundary (engine ⇄ UI ⇄ desktop) live in `shared/protocol.ts` and are imported with
   `import type`. Never duplicate them.
-- Keep dependencies minimal. The engine depends only on `ws`; the extension and build scripts have none (they include
+- Keep dependencies minimal. The engine depends only on `ws` and `ssh2` (SFTP); the extension and build scripts have none (they include
   their own zip writer and PNG encoder). Ask before adding a package.
 
 ## Engine (`engine/`)

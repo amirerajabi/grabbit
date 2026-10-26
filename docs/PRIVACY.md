@@ -24,6 +24,13 @@ The Grabbit app downloads the files you add, from the servers they come from. It
 on your computer. It checks [GitHub Releases](https://github.com/amirerajabi/grabbit/releases) for new versions, which
 you can turn off in Options → Updates.
 
+Site logins and archive passwords you save are encrypted on your computer and sent only to the site they belong to.
+
+The first time a feature needs a helper program, the app downloads it from that project's official GitHub releases and
+checks its checksum: 7-Zip (extracting archives), yt-dlp (videos from web pages) and FFmpeg (joining video and audio).
+Copies already installed on your computer are used instead where possible. yt-dlp contacts the video site you gave it,
+and Grabbit checks GitHub for a newer yt-dlp at most once a day when you download a video.
+
 ## Contact
 
 Questions: open an issue at https://github.com/amirerajabi/grabbit/issues.

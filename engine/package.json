@@ -2,7 +2,7 @@
   "name": "grabbit-engine",
   "private": true,
   "license": "MIT",
-  "version": "1.0.2",
+  "version": "1.1.0",
   "description": "Grabbit download engine: segmented HTTP(S) downloads, queues and scheduler behind a local HTTP + WebSocket API",
   "type": "module",
   "scripts": {

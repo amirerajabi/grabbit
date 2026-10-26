@@ -46,6 +46,13 @@ a glass top bar, a tabbed dock on the left, a toolbar, a status bar and a comman
 | Queues and scheduler | Several queues, each with a limit on files at once, start and stop times, and days of the week. |
 | Speed limiter | A global limit (toggle it from the status bar) and a limit per download. |
 | Batch download | Paste a list of links, or use a `*` wildcard pattern over numbers or letters with zero-padding. |
+| Site grabber | **Batch → Website** reads a page, and the pages it links to up to three levels deep, and lists the files of the types you choose. |
+| Video grabber | Paste a YouTube, Vimeo or other video page (yt-dlp knows about 1,800 sites) and pick the quality, or audio only. yt-dlp is downloaded on first use and kept up to date; FFmpeg joins video and audio. |
+| FTP and SFTP | `ftp://` and `sftp://` addresses, with several connections and resume. SFTP uses a password, the SSH agent or your key, and checks the server's host key. |
+| Site logins | HTTP Basic and Digest. Grabbit asks when a site wants a login and saves it encrypted (Options → Site logins). |
+| Proxy | The system proxy, or an HTTP or SOCKS5 proxy with a login, with a list of addresses that bypass it. |
+| After download | Checksum check (MD5, SHA-1, SHA-256, SHA-512), virus scan (Microsoft Defender or your scanner), open the file, and extraction of ZIP, 7z and RAR (multi-part and password-protected too) with 7-Zip, downloaded on first use. |
+| When done | Quit, sleep, hibernate or shut down when all downloads finish, after a one-minute warning you can cancel. |
 | Browser integration | Extensions for **Chrome**, **Edge** and **Firefox**: **Download with Grabbit**, **Download selected links** and **Download all links** in the right-click menu, and browser downloads of captured file types are handed to the app, cookies included. See [browser extensions](docs/browser-extensions.md). |
 | Clipboard monitoring | Copying a download link opens the Add dialog (desktop app). |
 | Duplicate handling | Renames to `file (1).zip`, or overwrites. |
@@ -123,7 +130,9 @@ The extension talks to the app on `127.0.0.1:7310/capture`. The engine accepts o
 ```
 engine/      Node download engine (sidecar): HTTP API + WebSocket events
   src/core/  DownloadTask (segments, splitting, retries), DownloadManager (queues, scheduler,
-             persistence, progress), limiter, http, categories, settings
+             persistence, progress), limiter, http (auth), proxy, secrets (encrypted logins),
+             sources/ (HTTP, FTP, SFTP), post (checksums, scan, power actions), extract (7-Zip),
+             tools (7-Zip, yt-dlp, FFmpeg on first use), video (yt-dlp), grabber, categories, settings
   src/http/  REST routes, /ws events, /capture for the extension
   test/      integration tests against a local Range-capable server
 ui/          React + Vite + zustand + lucide (Rowlit's structure)
@@ -138,7 +147,7 @@ desktop/     Electron main + preload: starts the engine as a utility process, wi
              clipboard watcher, notifications, folder picker
 extension/   browser extension: one source (src/) for Chrome, Edge and Firefox
 shared/      protocol.ts: wire types shared by the engine and the UI
-scripts/     run.mjs (dev and start launchers), build-extensions.mjs, test-server.mjs
+scripts/     run.mjs (dev and start launchers), build-extensions.mjs, test-server.mjs (HTTP on 7400, FTP on 7421)
 ```
 
 ## Keyboard
@@ -171,7 +180,7 @@ Release. CI typechecks and tests every push to `main`.
 
 ## Not included (yet)
 
-Proxy settings, HLS/DASH video grabbing, the "shut down when done" action and signed builds.
+Signed builds, macOS Intel builds, a floating drop target, and FTPS (FTP over TLS).
 
 ## License
 
