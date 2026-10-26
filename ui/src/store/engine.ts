@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { CategoryInfo, EngineState, Queue, Settings, WhenDoneAction } from '../../../shared/protocol';
+import type { CategoryInfo, EngineState, Queue, Settings, ToolInfo, WhenDoneAction } from '../../../shared/protocol';
 import { api } from '../api/client';
 
 /** Engine-owned configuration: settings, queues and the category list. */
@@ -10,7 +10,10 @@ interface EngineConfigState {
   version: string;
   /** A when-done countdown in progress (the action runs at `at`). */
   whenDone: { action: WhenDoneAction; at: number } | null;
+  /** 7-Zip, yt-dlp and FFmpeg: installed, downloading or missing. */
+  tools: ToolInfo[];
   load(s: EngineState): void;
+  setTools(tools: ToolInfo[]): void;
   setWhenDone(w: { action: WhenDoneAction; at: number } | null): void;
   setSettings(s: Settings): void;
   setQueues(q: Queue[]): void;
@@ -23,8 +26,12 @@ export const useEngine = create<EngineConfigState>((set) => ({
   categories: [],
   version: '',
   whenDone: null,
+  tools: [],
   load(s) {
-    set({ settings: s.settings, queues: s.queues, categories: s.categories, version: s.version, whenDone: s.whenDone ?? null });
+    set({ settings: s.settings, queues: s.queues, categories: s.categories, version: s.version, whenDone: s.whenDone ?? null, tools: s.tools ?? [] });
+  },
+  setTools(tools) {
+    set({ tools });
   },
   setWhenDone(whenDone) {
     set({ whenDone });

@@ -9,6 +9,8 @@ import type {
   QueueSchedule,
   Settings,
   SiteLogin,
+  ToolInfo,
+  ToolName,
 } from '../../../shared/protocol';
 import { getPlatform } from '../platform';
 
@@ -53,6 +55,9 @@ export const api = {
   addArchivePassword: (password: string) => call<{ count: number }>('POST', '/api/archive-passwords', { password }),
   clearArchivePasswords: () => call<{ count: number }>('DELETE', '/api/archive-passwords'),
   cancelWhenDone: () => call<{ ok: true }>('POST', '/api/when-done/cancel'),
+  extract: (id: string, password?: string) => call<DownloadItem>('POST', `/api/downloads/${id}/extract`, { password }),
+  installTool: (name: ToolName) => call<ToolInfo[]>('POST', `/api/tools/${name}/install`),
+  removeTool: (name: ToolName) => call<ToolInfo[]>('DELETE', `/api/tools/${name}`),
   open: (id: string, reveal: boolean) => call<{ ok: true }>('POST', `/api/downloads/${id}/open`, { reveal }),
   openFolder: (dir?: string) => call<{ ok: true }>('POST', '/api/open-folder', { dir }),
   updateSettings: (patch: Partial<Settings>) => call<Settings>('PUT', '/api/settings', patch),

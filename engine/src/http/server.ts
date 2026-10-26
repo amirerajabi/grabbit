@@ -2,7 +2,7 @@ import * as http from 'node:http';
 import * as path from 'node:path';
 import { timingSafeEqual } from 'node:crypto';
 import { WebSocketServer, type WebSocket } from 'ws';
-import type { AddDownloadRequest, BulkAction, EngineEvent, EngineState, Settings } from '../../../shared/protocol';
+import type { AddDownloadRequest, BulkAction, EngineEvent, EngineState, Settings, ToolName } from '../../../shared/protocol';
 import { CATEGORIES } from '../core/categories';
 import type { DownloadManager } from '../core/DownloadManager';
 import { openPath } from '../core/shell';
@@ -26,6 +26,7 @@ class HttpFailure extends Error {
 }
 
 const BULK: BulkAction[] = ['start', 'pause', 'remove', 'delete', 'redownload', 'moveToQueue', 'moveUp', 'moveDown'];
+const TOOLS: ToolName[] = ['7zip', 'yt-dlp', 'ffmpeg'];
 
 /**
  * Local API: REST under /api (bearer token), live events on /ws?token=..., and /capture for the browser extension
@@ -40,7 +41,13 @@ export function createServer(manager: DownloadManager, token: string): http.Serv
     routes.push({ method, pattern, keys, handler });
   };
 
-  route('GET', '/api/state', (): EngineState => ({ ...manager.state(), categories: CATEGORIES, version: ENGINE_VERSION, whenDone: manager.whenDoneState() }));
+  route('GET', '/api/state', (): EngineState => ({
+    ...manager.state(),
+    categories: CATEGORIES,
+    version: ENGINE_VERSION,
+    whenDone: manager.whenDoneState(),
+    tools: manager.tools.list(),
+  }));
   route('POST', '/api/probe', ({ body }) => manager.probe(String(body?.url ?? ''), body?.headers, body?.referer));
   route('POST', '/api/downloads', ({ body }) => manager.add(body as AddDownloadRequest));
   route('POST', '/api/downloads/batch', ({ body }) => {
@@ -66,6 +73,19 @@ export function createServer(manager: DownloadManager, token: string): http.Serv
   route('POST', '/api/archive-passwords', ({ body }) => (manager.secrets.addArchivePassword(String(body?.password ?? '')), { count: manager.secrets.archivePasswordCount() }));
   route('DELETE', '/api/archive-passwords', () => (manager.secrets.clearArchivePasswords(), { count: 0 }));
   route('POST', '/api/when-done/cancel', () => (manager.cancelWhenDone(), { ok: true }));
+  route('POST', '/api/downloads/:id/extract', ({ params, body }) => manager.extractNow(params.id, typeof body?.password === 'string' ? body.password : undefined));
+  route('GET', '/api/tools', () => manager.tools.list());
+  // Installing takes a while: answer at once, progress and the outcome arrive as "tools" events.
+  route('POST', '/api/tools/:name/install', ({ params }) => {
+    if (!TOOLS.includes(params.name as ToolName)) throw new HttpFailure(404, 'No such tool');
+    void manager.installTool(params.name as ToolName).catch(() => undefined);
+    return manager.tools.list();
+  });
+  route('DELETE', '/api/tools/:name', ({ params }) => {
+    if (!TOOLS.includes(params.name as ToolName)) throw new HttpFailure(404, 'No such tool');
+    manager.tools.remove(params.name as ToolName);
+    return manager.tools.list();
+  });
   route('POST', '/api/downloads/:id/open', ({ params, body }) => {
     const d = manager.get(params.id);
     if (!d) throw new HttpFailure(404, 'No such download');

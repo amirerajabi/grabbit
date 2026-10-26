@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import type { CategoryId, ProbeResult } from '../../../../shared/protocol';
 import { api } from '../../api/client';
 import { attempt } from '../../app/commands';
+import { isArchive } from '../../lib/archive';
 import { isChecksum } from '../../lib/checksum';
 import { formatBytes } from '../../lib/format';
 import { categoryDir, fileNameFromUrl, guessCategory } from '../../lib/paths';
@@ -44,6 +45,8 @@ function AddForm() {
   const [connections, setConnections] = useState(settings?.maxConnections ?? 8);
   const [checksum, setChecksum] = useState('');
   const [openWhenDone, setOpenWhenDone] = useState(false);
+  const [extract, setExtract] = useState<boolean | null>(null);
+  const extractOn = extract ?? settings?.extractArchives ?? false;
   const checksumValid = isChecksum(checksum);
   const [busy, setBusy] = useState(false);
 
@@ -114,6 +117,7 @@ function AddForm() {
           probe: probe ? { finalUrl: probe.finalUrl, size: probe.size, resumable: probe.resumable, mime: probe.mime } : undefined,
           checksum: checksum.trim() || undefined,
           openWhenDone,
+          extract: extract ?? undefined,
         }),
       'Could not add the download',
     );
@@ -276,6 +280,12 @@ function AddForm() {
           <input type="checkbox" checked={openWhenDone} onChange={(e) => setOpenWhenDone(e.target.checked)} />
           Open the file when it finishes
         </label>
+        {isArchive(fileName) && (
+          <label className="check">
+            <input type="checkbox" checked={extractOn} onChange={(e) => setExtract(e.target.checked)} />
+            Extract the archive when it finishes
+          </label>
+        )}
       </div>
     </Dialog>
   );

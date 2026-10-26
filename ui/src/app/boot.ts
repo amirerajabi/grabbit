@@ -46,6 +46,9 @@ function onEvent(e: EngineEvent): void {
       useEngine.getState().setSettings(e.settings);
       syncPreferences();
       return;
+    case 'tools':
+      useEngine.getState().setTools(e.tools);
+      break;
     case 'whenDone':
       useEngine.getState().setWhenDone(e.at === null ? null : { action: e.action, at: e.at });
       return;

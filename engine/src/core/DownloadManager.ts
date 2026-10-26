@@ -12,10 +12,12 @@ import type {
   Queue,
   QueueSchedule,
   Settings,
+  ToolName,
   WhenDoneAction,
 } from '../../../shared/protocol';
 import { categoryFolder, categoryFor, extensionOf, isCategoryId } from './categories';
 import { DownloadTask, type TaskHost } from './DownloadTask';
+import { archiveName, extractArchive, extractDir } from './extract';
 import { RateLimiter, SpeedMeter } from './limiter';
 import { hashFile, isHashAlgo, parseChecksum, runPowerAction, scanFile } from './post';
 import { parseProxyUrl, setProxySettings } from './proxy';
@@ -25,6 +27,7 @@ import { isSupportedUrl, probeAny } from './sources';
 import { setKnownHostsFile } from './sources/sftp';
 import { openPath } from './shell';
 import { defaultSettings, mergeSettings } from './settings';
+import { ToolManager } from './tools';
 import { atomicWrite, clamp, isHttpUrl, newId, readJson, sanitizeFileName, TEMP_EXT, uniquePath } from './util';
 
 const MAIN_QUEUE = 'main';
@@ -59,17 +62,19 @@ export class DownloadManager extends EventEmitter implements TaskHost {
   private posting = new Set<string>();
   /** The pending when-done action: timer and the time it fires. */
   private whenDoneTimer: { timer: NodeJS.Timeout; at: number } | null = null;
-  /** Archive extraction, plugged in by the engine (it needs the tools manager); null = not available. */
-  extractStep: ((item: DownloadItem) => Promise<void>) | null = null;
   /** "queueId@yyyy-mm-dd HH:mm:start|stop" of the last schedule action, so a minute fires once. */
   private fired = new Set<string>();
 
   /** Saved site logins and archive passwords, encrypted on disk. */
   readonly secrets: SecretStore;
+  /** 7-Zip, yt-dlp and ffmpeg, fetched on first use. */
+  readonly tools: ToolManager;
 
   constructor(private readonly dataDir: string) {
     super();
     this.secrets = new SecretStore(dataDir);
+    this.tools = new ToolManager(dataDir);
+    this.tools.on('tools', (tools) => this.emitEvent({ type: 'tools', tools }));
   }
 
   // ------------------------------------------------------------------ lifecycle
@@ -209,8 +214,8 @@ export class DownloadManager extends EventEmitter implements TaskHost {
           this.emitEvent({ type: 'notify', level: 'error', text: `Threat found in ${item.fileName}`, detail: r.message ?? undefined, downloadId: item.id });
         }
       }
-      if (ok && this.extractStep && (item.extract ?? this.settingsValue.extractArchives)) {
-        await this.extractStep(item);
+      if (ok && archiveName(item.fileName) && (item.extract ?? this.settingsValue.extractArchives)) {
+        await this.extract(item);
       }
     } catch (e) {
       post({ message: e instanceof Error ? e.message : String(e) });
@@ -226,6 +231,82 @@ export class DownloadManager extends EventEmitter implements TaskHost {
         /* the file was moved or deleted meanwhile */
       }
     }
+  }
+
+  /**
+   * Extracts a finished archive. For a multi-part set it waits until every part in the list has finished, then runs
+   * once (from whichever part finished last) and records the result on all of them. `password` is tried first.
+   */
+  private async extract(item: DownloadItem, password?: string): Promise<void> {
+    const name = archiveName(item.fileName);
+    if (!name) throw new Error('This file is not an archive Grabbit can extract (ZIP, 7z or RAR)');
+    const sameSet = [...this.items.values()].filter((d) => d.dir === item.dir && archiveName(d.fileName)?.group === name.group);
+    if (sameSet.some((d) => d.status !== 'completed')) return;
+    const first = sameSet.find((d) => archiveName(d.fileName)!.first);
+    if (!first) {
+      this.setPost(sameSet, { extract: 'failed', message: 'The first part of the archive is not in the download list' });
+      return;
+    }
+    const archive = path.join(first.dir, first.fileName);
+    this.setPost(sameSet, { step: 'extracting', message: null });
+    try {
+      const bin = await this.tools.ensure('7zip');
+      const dest = extractDir(item.dir, name.base);
+      const passwords = [...(password ? [password] : []), ...this.secrets.archivePasswords()];
+      let lastPct = -1;
+      const r = await extractArchive(bin, archive, dest, passwords, (pct) => {
+        if (pct === lastPct) return;
+        lastPct = pct;
+        this.setPost(sameSet, { message: `Extracting ${pct}%` });
+      });
+      this.setPost(sameSet, { extract: r.result, extractedTo: r.result === 'done' ? dest : null, message: r.message });
+      if (r.result === 'done' && password && !this.secrets.archivePasswords().includes(password)) this.secrets.addArchivePassword(password);
+      if (r.result === 'done' && this.settingsValue.deleteArchiveAfterExtract) {
+        for (const d of sameSet) fs.rmSync(path.join(d.dir, d.fileName), { force: true });
+      }
+      if (r.result !== 'done') {
+        this.emitEvent({
+          type: 'notify',
+          level: r.result === 'password' ? 'info' : 'error',
+          text: r.result === 'password' ? `${item.fileName} needs a password to extract` : `Couldn't extract ${item.fileName}`,
+          detail: r.message ?? undefined,
+          downloadId: item.id,
+        });
+      }
+    } catch (e) {
+      this.setPost(sameSet, { extract: 'failed', message: e instanceof Error ? e.message : String(e) });
+    } finally {
+      this.setPost(sameSet.filter((d) => d !== item), { step: null });
+    }
+  }
+
+  private setPost(items: DownloadItem[], patch: Partial<DownloadItem['post']>): void {
+    for (const d of items) {
+      d.post = { ...d.post, ...patch };
+      this.changed(d);
+    }
+  }
+
+  /** Extract on request (the details pane), with a password the user typed if there is one. */
+  async extractNow(id: string, password?: string): Promise<DownloadItem> {
+    const item = this.items.get(id);
+    if (!item) throw new Error('No such download');
+    if (item.status !== 'completed') throw new Error('The download is not finished yet');
+    if (this.posting.has(id)) throw new Error('Already working on this file');
+    this.posting.add(id);
+    try {
+      await this.extract(item, password?.trim() || undefined);
+    } finally {
+      item.post = { ...item.post, step: null };
+      this.changed(item);
+      this.posting.delete(id);
+    }
+    return snapshot(item);
+  }
+
+  /** Fetch a helper program now (Options → Tools), instead of on first use. */
+  async installTool(name: ToolName): Promise<void> {
+    await this.tools.ensure(name);
   }
 
   /** Checks the finished file against the expected hash; true when it matches. */

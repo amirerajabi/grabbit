@@ -3,6 +3,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import type { DownloadItem, HashAlgo, Segment } from '../../../../shared/protocol';
 import { api } from '../../api/client';
 import { attempt } from '../../app/commands';
+import { isArchive } from '../../lib/archive';
 import { ALGO_LABEL } from '../../lib/checksum';
 import { formatBytes, formatDate, formatEta, formatSpeed, percent } from '../../lib/format';
 import { ACTIVE, useDownloads } from '../../store/downloads';
@@ -157,7 +158,7 @@ function AfterDownload({ item: d }: { item: DownloadItem }) {
   const busy = c?.state === 'computing';
   return (
     <>
-      {p.step && <Kv k="Now" v={<span className="text-accent">{STEP_LABEL[p.step]}</span>} />}
+      {p.step && <Kv k="Now" v={<span className="text-accent">{p.step === 'extracting' && p.message ? `${p.message}…` : STEP_LABEL[p.step]}</span>} />}
       {c && (
         <Kv
           k={`${ALGO_LABEL[c.algo]}`}
@@ -198,22 +199,62 @@ function AfterDownload({ item: d }: { item: DownloadItem }) {
           v={p.scan === 'clean' ? <span className="text-success">No threats found</span> : p.scan === 'threat' ? <span className="text-danger">Threat found: {p.message}</span> : <span className="text-warning">Not scanned: {p.message}</span>}
         />
       )}
-      {p.extract && (
-        <Kv
-          k="Extracted"
-          v={
-            p.extract === 'done' ? (
-              <span className="selectable mono-sm">{p.extractedTo}</span>
-            ) : p.extract === 'password' ? (
-              <span className="text-warning">Needs a password. Add it in Options → After download.</span>
-            ) : (
-              <span className="text-danger">{p.message ?? 'Extraction failed'}</span>
-            )
-          }
-        />
-      )}
-      {!p.scan && !p.extract && p.message && <Kv k="Note" v={<span className="text-warning">{p.message}</span>} />}
+      {d.status === 'completed' && !p.step && (p.extract || isArchive(d.fileName)) && <ExtractRow item={d} />}
+      {!p.scan && !p.extract && !p.step && p.message && <Kv k="Note" v={<span className="text-warning">{p.message}</span>} />}
     </>
+  );
+}
+
+/** The extraction result, with a password field when the archive needs one and "Extract" when it hasn't run. */
+function ExtractRow({ item: d }: { item: DownloadItem }) {
+  const p = d.post;
+  const [pw, setPw] = useState('');
+  const run = (password?: string) => attempt(() => api.extract(d.id, password), 'Could not extract the archive');
+  if (p.extract === 'done') {
+    return (
+      <Kv
+        k="Extracted to"
+        v={
+          <span className="extract-done">
+            <span className="selectable mono-sm">{p.extractedTo}</span>
+            <button className="btn btn-xs" onClick={() => attempt(() => api.openFolder(p.extractedTo ?? undefined), 'Could not open the folder')}>
+              <FolderOpen size={14} /> Open
+            </button>
+          </span>
+        }
+      />
+    );
+  }
+  if (p.extract === 'password') {
+    return (
+      <Kv
+        k="Extract"
+        v={
+          <span className="extract-pw">
+            <span className="text-warning">{p.message ?? 'The archive is password-protected'}</span>
+            <span className="input-with-btn">
+              <input className="input xs" type="password" value={pw} onChange={(e) => setPw(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && pw && void run(pw)} placeholder="Password" autoComplete="off" aria-label="Archive password" />
+              <button className="btn btn-xs" disabled={!pw} onClick={() => void run(pw)}>
+                Extract
+              </button>
+            </span>
+          </span>
+        }
+      />
+    );
+  }
+  return (
+    <Kv
+      k="Extract"
+      v={
+        <span className="extract-done">
+          {p.extract === 'failed' && <span className="text-danger">{p.message ?? 'Extraction failed'}</span>}
+          <button className="btn btn-xs" onClick={() => void run()}>
+            {p.extract === 'failed' ? 'Try again' : 'Extract now'}
+          </button>
+        </span>
+      }
+    />
   );
 }
 

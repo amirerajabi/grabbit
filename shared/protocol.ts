@@ -254,12 +254,32 @@ export interface EngineState {
   version: string;
   /** A when-done countdown in progress. */
   whenDone: { action: WhenDoneAction; at: number } | null;
+  tools: ToolInfo[];
+}
+
+/** Helper programs Grabbit uses: 7-Zip extracts archives, yt-dlp and ffmpeg grab videos. */
+export type ToolName = '7zip' | 'yt-dlp' | 'ffmpeg';
+
+export interface ToolInfo {
+  name: ToolName;
+  label: string;
+  /** 'missing' until first use (or an explicit install), then downloaded on demand. */
+  state: 'missing' | 'downloading' | 'ready' | 'failed';
+  /** 'system': a copy already installed on this computer; 'grabbit': one Grabbit downloaded. */
+  source: 'system' | 'grabbit' | null;
+  path: string | null;
+  version: string | null;
+  /** Download progress while state is 'downloading'. */
+  received: number;
+  size: number | null;
+  error: string | null;
 }
 
 export type EngineEvent =
   | { type: 'download.added'; item: DownloadItem }
   | { type: 'download.updated'; item: DownloadItem }
   | { type: 'download.removed'; ids: string[] }
+  | { type: 'tools'; tools: ToolInfo[] }
   | { type: 'progress'; entries: ProgressEntry[]; totalSpeed: number }
   | { type: 'queues'; queues: Queue[] }
   | { type: 'settings'; settings: Settings }

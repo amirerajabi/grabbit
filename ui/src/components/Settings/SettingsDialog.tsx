@@ -10,6 +10,7 @@ import { useUpdates } from '../../store/updates';
 import { Dialog, Field } from '../common/Dialog';
 import { BrandMark } from '../common/visuals';
 import { LoginsSection } from '../Logins/LoginsSection';
+import { ArchivePasswords, ToolsList } from './ToolsAndArchives';
 import { WHEN_DONE_LABEL } from '../WhenDone/WhenDone';
 
 const SECTIONS: { id: SettingsSection; label: string; Icon: typeof Settings }[] = [
@@ -338,6 +339,19 @@ function AfterSection({ s }: { s: SettingsT }) {
         onSave={(v) => save({ scanCommand: v })}
         mono
       />
+      <h3 className="settings-subhead">Archives</h3>
+      <Toggle
+        label="Extract archives when they finish"
+        hint="ZIP, 7z and RAR, into a folder next to the archive. Multi-part archives are extracted once every part is here. You can also choose per download."
+        checked={s.extractArchives}
+        onChange={(v) => save({ extractArchives: v })}
+      />
+      <Toggle label="Delete the archive after extracting it" hint="Only when the extraction succeeded." checked={s.deleteArchiveAfterExtract} onChange={(v) => save({ deleteArchiveAfterExtract: v })} />
+      <Field label="Archive passwords" hint="Tried in turn on password-protected archives. A password you type for an archive is saved here too.">
+        <ArchivePasswords />
+      </Field>
+      <h3 className="settings-subhead">Helper programs</h3>
+      <ToolsList />
     </div>
   );
 }
