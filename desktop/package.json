@@ -1,7 +1,7 @@
 {
   "name": "grabbit-desktop",
   "productName": "Grabbit",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Grabbit: a fast, segmented download manager for Windows and macOS",
   "author": "Grabbit contributors",
   "license": "MIT",
