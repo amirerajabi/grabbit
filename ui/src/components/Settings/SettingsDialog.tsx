@@ -110,6 +110,9 @@ function Section({ id, s }: { id: SettingsSection; s: SettingsT }) {
           <Toggle label="Show the Add dialog for captured downloads" hint="Off: links from the browser start downloading straight away." checked={s.showAddDialog} onChange={(v) => save({ showAddDialog: v })} />
           <Toggle label="Notify when a download finishes or fails" checked={s.notifyOnComplete} onChange={(v) => save({ notifyOnComplete: v })} />
           {electron && <Toggle label="Keep running in the tray when the window is closed" hint="Downloads continue in the background." checked={s.minimizeToTray} onChange={(v) => save({ minimizeToTray: v })} />}
+          {electron && getPlatform().os === 'win32' && (
+            <Toggle label="Start Grabbit when Windows starts" hint="It comes up in the tray, ready to catch downloads." checked={s.launchAtStartup} onChange={(v) => save({ launchAtStartup: v })} />
+          )}
         </div>
       );
     case 'connection':

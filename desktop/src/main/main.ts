@@ -17,7 +17,9 @@ let win: BrowserWindow | null = null;
 let tray: Tray | null = null;
 let engine: EngineInfo | null = null;
 let quitting = false;
-let prefs: Preferences = { clipboardMonitor: true, captureExtensions: [], minimizeToTray: true, autoUpdate: true };
+let prefs: Preferences = { clipboardMonitor: true, captureExtensions: [], minimizeToTray: true, launchAtStartup: false, autoUpdate: true };
+/** The last launch-at-startup state we asked the OS for, so we only touch the Run key on a real change. */
+let loginItemApplied: boolean | null = null;
 let updater: Updater | null = null;
 /** Links handed to us on the command line (`grabbit.exe <url>`) before the UI was ready. */
 const pendingLinks: string[] = [];
@@ -190,9 +192,11 @@ function installIpc(): void {
       clipboardMonitor: !!p?.clipboardMonitor,
       captureExtensions: Array.isArray(p?.captureExtensions) ? p.captureExtensions.map(String) : [],
       minimizeToTray: !!p?.minimizeToTray,
+      launchAtStartup: !!p?.launchAtStartup,
       autoUpdate: p?.autoUpdate !== false,
     };
     watcher.configure(prefs.clipboardMonitor, prefs.captureExtensions);
+    configureStartup(prefs.launchAtStartup);
     updater?.configure(prefs.autoUpdate);
   });
   ipcMain.on(CH.bringToFront, bringToFront);
@@ -218,6 +222,18 @@ function installIpc(): void {
 function quit(): void {
   quitting = true;
   app.quit();
+}
+
+/**
+ * Register or unregister Grabbit in the Windows Run key (Options → General → start with Windows). Only the packaged
+ * app touches it: a dev or test run would register electron.exe, which starts nothing useful at sign-in.
+ */
+function configureStartup(on: boolean): void {
+  if (loginItemApplied === on) return;
+  loginItemApplied = on;
+  if (!app.isPackaged || process.platform !== 'win32') return;
+  // --hidden: come up in the tray like IDM, ready to catch downloads without putting a window in the way.
+  app.setLoginItemSettings({ openAtLogin: on, args: on ? ['--hidden'] : [] });
 }
 
 /** Smoke test (GRABBIT_SMOKE_SHOT=<file.png>): let the UI connect to the engine, capture the window, quit. */

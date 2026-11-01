@@ -21,7 +21,7 @@ async function loadState(): Promise<void> {
 
 function syncPreferences(): void {
   const s = useEngine.getState().settings;
-  if (s) getPlatform().setPreferences({ clipboardMonitor: s.clipboardMonitor, captureExtensions: s.captureExtensions, minimizeToTray: s.minimizeToTray, autoUpdate: s.autoUpdate });
+  if (s) getPlatform().setPreferences({ clipboardMonitor: s.clipboardMonitor, captureExtensions: s.captureExtensions, minimizeToTray: s.minimizeToTray, launchAtStartup: s.launchAtStartup, autoUpdate: s.autoUpdate });
 }
 
 /** Overall progress of what is running, for the taskbar / dock icon. */

@@ -173,6 +173,8 @@ export interface Settings {
   captureExtensions: string[];
   theme: ThemePref;
   minimizeToTray: boolean;
+  /** Start the desktop app when the user signs in to Windows (hidden, in the tray). */
+  launchAtStartup: boolean;
   /** Check GitHub Releases for a new version at start and every few hours (desktop app). */
   autoUpdate: boolean;
   /** What to do once every running download has finished; resets to 'nothing' after it fires. */

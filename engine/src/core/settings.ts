@@ -30,6 +30,7 @@ export function defaultSettings(): Settings {
     ],
     theme: 'system',
     minimizeToTray: true,
+    launchAtStartup: false,
     autoUpdate: true,
     whenDone: 'nothing',
     scanAfterDownload: false,
@@ -65,6 +66,7 @@ export function mergeSettings(base: Settings, patch: Partial<Settings>): Setting
   }
   if (p.theme === 'system' || p.theme === 'light' || p.theme === 'dark') s.theme = p.theme;
   if (typeof p.minimizeToTray === 'boolean') s.minimizeToTray = p.minimizeToTray;
+  if (typeof p.launchAtStartup === 'boolean') s.launchAtStartup = p.launchAtStartup;
   if (typeof p.autoUpdate === 'boolean') s.autoUpdate = p.autoUpdate;
   if (typeof p.whenDone === 'string' && WHEN_DONE.includes(p.whenDone as WhenDoneAction)) s.whenDone = p.whenDone as WhenDoneAction;
   if (typeof p.scanAfterDownload === 'boolean') s.scanAfterDownload = p.scanAfterDownload;

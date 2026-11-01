@@ -28,5 +28,6 @@ export interface Preferences {
   clipboardMonitor: boolean;
   captureExtensions: string[];
   minimizeToTray: boolean;
+  launchAtStartup: boolean;
   autoUpdate: boolean;
 }

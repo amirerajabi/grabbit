@@ -14,8 +14,8 @@ export interface DesktopBridge {
   notify(title: string, body: string): void;
   setProgress(fraction: number): void;
   setTheme(theme: 'light' | 'dark', colors: { bg: string; fg: string }): void;
-  /** Settings the desktop shell acts on itself (clipboard watcher, close-to-tray, update checks). */
-  setPreferences(p: { clipboardMonitor: boolean; captureExtensions: string[]; minimizeToTray: boolean; autoUpdate: boolean }): void;
+  /** Settings the desktop shell acts on itself (clipboard watcher, close-to-tray, start-with-Windows, update checks). */
+  setPreferences(p: { clipboardMonitor: boolean; captureExtensions: string[]; minimizeToTray: boolean; launchAtStartup: boolean; autoUpdate: boolean }): void;
   /** Exit the desktop app (the when-done action "Quit Grabbit"). */
   quit(): void;
   /** Show the window over other apps (a link arrived from the browser or the clipboard). */

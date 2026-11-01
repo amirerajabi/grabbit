@@ -29,6 +29,7 @@ contextBridge.exposeInMainWorld('grabbit', {
       clipboardMonitor: !!p.clipboardMonitor,
       captureExtensions: Array.isArray(p.captureExtensions) ? p.captureExtensions.map(String) : [],
       minimizeToTray: !!p.minimizeToTray,
+      launchAtStartup: !!p.launchAtStartup,
       autoUpdate: p.autoUpdate !== false,
     }),
   appVersion: ipcRenderer.sendSync(CH.appVersion) as string,
