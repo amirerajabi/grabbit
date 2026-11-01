@@ -3,9 +3,15 @@
 Where the project stands, for whoever picks it up next (person or agent). Update it when you release, finish an item
 or leave work half done.
 
-_Last updated: 2026-10-26_
+_Last updated: 2026-11-01_
 
 ## Released
+
+**v1.2.0** (2026-11-01): https://github.com/amirerajabi/grabbit/releases/tag/v1.2.0
+
+- "Start Grabbit when Windows starts" (Options → General): registers the app in the Windows Run key with `--hidden`
+  (`app.setLoginItemSettings`, only when packaged), so it comes up in the tray. Verified end to end in the packaged
+  build: on → Run key written, restart → reapplied, off → removed.
 
 **v1.1.1** (2026-10-26): https://github.com/amirerajabi/grabbit/releases/tag/v1.1.1
 
@@ -57,6 +63,7 @@ builds arm64 only).
 
 | Version | Highlights |
 | --- | --- |
+| 1.2.0 | Start with Windows (tray, hidden) |
 | 1.1.1 | Video grabbing (yt-dlp), site grabber, FTP/SFTP, archive extraction, proxy, site logins, checksums, virus scan, when-done actions |
 | 1.0.2 | The window comes to the front with the Add dialog when a link is captured from the browser or the clipboard |
 | 1.0.1 | Browser extensions (Chrome, Edge, Firefox) with "Download all links"; fix for the extension's status check being refused (no `Origin` from Chromium); fix for quick settings changes crashing the engine |
